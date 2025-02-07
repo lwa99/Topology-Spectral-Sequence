@@ -6,3 +6,4 @@ class Page:
         return
 
     def __add__(self, other):
+        pass
