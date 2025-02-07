@@ -7,3 +7,6 @@ class Page:
 
     def __add__(self, other):
         pass
+
+class HTerm:
+
