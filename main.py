@@ -1,12 +1,7 @@
-print("Hello World")
 
 
-class Page:
-    def __init__(self):
-        return
+# Define the base field
+F = QQ
 
-    def __add__(self, other):
-        pass
-
-class HTerm:
-
+# Define the bigraded algebra (for example, a polynomial ring in two variables)
+A.<x,y> = GradedCommutativeAlgebra(F, degrees=(1, 1))
