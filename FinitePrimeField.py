@@ -1,3 +1,4 @@
+from warnings import warn
 class PField:
     """
     Fintie prime Field of characteristic (and order) n
