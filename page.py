@@ -20,4 +20,6 @@ if __name__ == "__main__":
     e_1 = Element(p, array([1, 2]), p.get_scalar(3))
     print(e_1)
     e_2 = Element(p, array([1, 2]), p.get_scalar(5))
-    print((e_1 + e_2))
+    e_3 = e_1 + e_2
+    print(e_3)
+    print(e_3._calculate_bigrade())

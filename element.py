@@ -27,6 +27,15 @@ class DOArray(ndarray):
 
     def __hash__(self):
         return int(sum(self))
+    
+    def __str__(self):
+        return "DOArray:\n" + super().__str__()
+
+    def combo(self, arr):
+        output = 0
+        for i, n, in enumerate(arr):
+            output += self[i] * arr[i]
+        return output
 
 
 class Element:
@@ -34,7 +43,7 @@ class Element:
     An element in a page is a polynomial of the generators.
     Coefficients in every polynomial are non-zero (zero terms would be deleted in real time).
     """
-    def __init__(self, page: AbstractPage, degrees: ndarray = None, coef: Scalar = None):
+    def __init__(self, page: AbstractPage, degrees: ndarray | tuple[int, ...] = None, coef: Scalar = None):
         self.page = page
         self.coefMap = SortedDict()
         self.bigrade = None
@@ -73,11 +82,17 @@ class Element:
     def __mul__(self, other):
         pass
 
-    def _bigrade_from_deg_config(self, deg_config: DOArray | tuple[int, ...]):
-        output = 0
-        for i, n in enumerate(deg_config):
-            output += n * self.page.generator_bigrades[i]
-        return output
+    def _calculate_bigrade(self) -> ndarray:
+        if len(self.coefMap) == 0:
+            return array([])
+        _iter = self.coefMap.keys().__iter__()  # get the key iterator
+        output = _iter.__next__().combo(self.page.generator_bigrades)  # get the first key and calculate bigrade
+        try:
+            while True:
+                if not (_iter.__next__().combo(self.page.generator_bigrades) == output).all():
+                    return array([])
+        except StopIteration:
+            return output
 
     def __str__(self):
         output = ""
