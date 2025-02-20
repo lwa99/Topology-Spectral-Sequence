@@ -1,6 +1,7 @@
 from scalar import Scalar
 from abstractPage import AbstractPage
 from element import Element
+from numpy import ndarray, array
 
 
 class Page(AbstractPage):
@@ -9,10 +10,14 @@ class Page(AbstractPage):
 
 
 if __name__ == "__main__":
-    p = Page(["x", "y"], [(1, 2), (3, 4)], 7)
-    c_1 = p.get_scalar(14)
-    print(c_1)
-    e_1 = Element(p, [1, 2], p.get_scalar(3))
+    try:
+        assert False
+    except AssertionError:
+        print("Debug Mode: ON")
+
+    p = Page(["x", "y"], array([[1, 2], [3, 4]]), 7)
+    print(p.get_scalar(9))
+    e_1 = Element(p, array([1, 2]), p.get_scalar(3))
     print(e_1)
-    e_2 = Element(p, [1, 2], p.get_scalar(-1))
+    e_2 = Element(p, array([1, 2]), p.get_scalar(5))
     print((e_1 + e_2))

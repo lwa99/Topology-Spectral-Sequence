@@ -1,53 +1,55 @@
 from sortedcontainers import SortedDict
 from scalar import Scalar
 from abstractPage import AbstractPage
+from numpy import ndarray, array, asarray
+from copy import copy, deepcopy
 
 
-class _DegreeConfiguration:
+class DOArray(ndarray):
     """
-    A degree configuration is an ordered list of degree on each generator. It is equipped with the dictionary
-    order so that we can use it as a key in red black tree.
+    One dimensional array equipped with dictionary order. Used to store degrees of generators.
     """
-
-    def __init__(self, degree_config: tuple[int]):
-        self.degree_config = degree_config
+    def __new__(cls, input_array):
+        return asarray(input_array).view(cls)
 
     def __lt__(self, other):
-        for i, n in enumerate(self.degree_config):
-            if n < other.degree_config[i]:
-                return True
-        return False
-
-    def __gt__(self, other):
-        for i, n in enumerate(self.degree_config):
-            if n > other.degree_config[i]:
+        for i, n in enumerate(self):
+            if n < other[i]:
                 return True
         return False
 
     def __eq__(self, other):
-        for i, n in enumerate(self.degree_config):
-            if n != other.degree_config[i]:
-                return False
-        return True
+        # for i, n in enumerate(self):
+        #     if n != other[i]:
+        #         return False
+        # return True
+        return all(super().__eq__(other))
 
     def __hash__(self):
-        return sum(self.degree_config)
+        return int(sum(self))
 
 
 class Element:
     """
     An element in a page is a polynomial of the generators.
+    Coefficients in every polynomial are non-zero (zero terms would be deleted in real time).
     """
-    def __init__(self, page: AbstractPage, degrees=None, coef: Scalar =None):
+    def __init__(self, page: AbstractPage, degrees: ndarray = None, coef: Scalar = None):
         self.page = page
         self.coefMap = SortedDict()
+        self.bigrade = None
         if degrees is not None:
             assert len(degrees) == self.page.gen_num
-            self.coefMap[_DegreeConfiguration(degrees)] = coef
+            self.coefMap[DOArray(degrees)] = coef
+            self.bigrade = degrees * self.page.generator_bigrades
 
     def __add__(self, other: 'Element'):
-        output = Element(self.page)
-        output.coefMap = self.coefMap
+        if len(self.coefMap) == 0:
+            return deepcopy(other)
+        output = deepcopy(self)
+        if len(other.coefMap) == 0:
+            return output
+
         for key, scalar in other.coefMap.items():
 
             # If the key is absent, the following line will add the key associated with an empty scalar wrapper.
@@ -56,14 +58,25 @@ class Element:
             # modified accordingly.
             # If it becomes 0, the key-value pair will be deleted.
             cur_val = output.coefMap.setdefault(key, self.page.get_scalar(None))
-            print(cur_val)
             if cur_val == self.page.get_scalar(None):
                 cur_val.update(scalar.val)
             else:
-                print("Add:" + str(scalar))
                 cur_val.increase_by(scalar)
+
+                # Now take care of 0 coefficient
                 if cur_val.val == 0:
                     del output.coefMap[key]
+
+        # TODO: recalculate bigrade
+        return output
+
+    def __mul__(self, other):
+        pass
+
+    def _bigrade_from_deg_config(self, deg_config: DOArray | tuple[int, ...]):
+        output = 0
+        for i, n in enumerate(deg_config):
+            output += n * self.page.generator_bigrades[i]
         return output
 
     def __str__(self):
@@ -72,12 +85,16 @@ class Element:
             return "zero polynomial (element)"
         for key, value in self.coefMap.items():
             output += str(value.val)
-            for i, degree in enumerate(key.degree_config):
+            for i, degree in enumerate(key):
                 output += f"({self.page.generators[i]}^{degree})"
             output += " + "
         output = output[:-2] + f" (mod {self.page.c})"
         return output
 
-    @property
-    def bigrade(self):
-        return
+
+if __name__ == "__main__":
+    dc_1 = DOArray((1, 2, 3))
+    dc_2 = DOArray((1, 3, 2))
+    for _i in dc_1:
+        print(_i)
+    print(dc_1 < dc_2)

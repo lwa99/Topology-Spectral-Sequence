@@ -28,7 +28,7 @@ class Scalar:
         self.val = pow(self.val, -1, self.c)
 
     def update(self, val):
-        self.val = val
+        self.val = val % self.c
 
     # Operations that yields new objects
     def __add__(self, other: 'Scalar'):

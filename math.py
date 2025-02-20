@@ -1,11 +1,7 @@
 """
+Deprecated!!!!
 Math Structures for the Project
 """
-
-
-
-
-
 class BiGradedAlgebra:
     class DegreeConfiguration:
         """
