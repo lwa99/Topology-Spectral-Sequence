@@ -1,98 +1,102 @@
 from sortedcontainers import SortedDict
 from scalar import Scalar
 from abstractPage import AbstractPage
-from numpy import ndarray, array, asarray
-from copy import copy, deepcopy
-
-
-class DOArray(ndarray):
-    """
-    One dimensional array equipped with dictionary order. Used to store degrees of generators.
-    """
-    def __new__(cls, input_array):
-        return asarray(input_array).view(cls)
-
-    def __lt__(self, other):
-        for i, n in enumerate(self):
-            if n < other[i]:
-                return True
-        return False
-
-    def __eq__(self, other):
-        # for i, n in enumerate(self):
-        #     if n != other[i]:
-        #         return False
-        # return True
-        return all(super().__eq__(other))
-
-    def __hash__(self):
-        return int(sum(self))
-    
-    def __str__(self):
-        return "DOArray:\n" + super().__str__()
-
-    def combo(self, arr):
-        output = 0
-        for i, n, in enumerate(arr):
-            output += self[i] * arr[i]
-        return output
+from tools import DOArray
+from copy import deepcopy
+from numpy import dot
 
 
 class Element:
     """
     An element in a page is a polynomial of the generators.
     Coefficients in every polynomial are non-zero (zero terms would be deleted in real time).
+
+    Important Note:
+    For zero polynomial, we define its bigrade to be empty: DOArray([]).
+    For inhomogeneous (and thus non-zero) polynomial, we define its bigrade to be None.
     """
-    def __init__(self, page: AbstractPage, degrees: ndarray | tuple[int, ...] = None, coef: Scalar = None):
+    def __init__(self, page: AbstractPage, degrees: DOArray = None, coef: Scalar = None):
         self.page = page
         self.coefMap = SortedDict()
-        self.bigrade = None
+        self.bigrade = DOArray([])
         if degrees is not None:
             assert len(degrees) == self.page.gen_num
-            self.coefMap[DOArray(degrees)] = coef
-            self.bigrade = degrees * self.page.generator_bigrades
+            self.coefMap[degrees] = coef
+            self.bigrade = dot(degrees, self.page.generator_bigrades)
 
     def __add__(self, other: 'Element'):
         if len(self.coefMap) == 0:
             return deepcopy(other)
+
+        # From now on we may assume that self is not the zero polynomial
         output = deepcopy(self)
         if len(other.coefMap) == 0:
             return output
+        term_deleted = False
 
         for key, scalar in other.coefMap.items():
-
             # If the key is absent, the following line will add the key associated with an empty scalar wrapper.
             # Then, the value is replaced by the actual value.
             # IF the key is present, the following line will do nothing and return the current value, which will be
             # modified accordingly.
             # If it becomes 0, the key-value pair will be deleted.
-            cur_val = output.coefMap.setdefault(key, self.page.get_scalar(None))
-            if cur_val == self.page.get_scalar(None):
-                cur_val.update(scalar.val)
+            cur_coef = output.coefMap.setdefault(key, self.page.get_scalar(None))
+            if cur_coef == self.page.get_scalar(None):
+                cur_coef.update(scalar.val)
             else:
-                cur_val.increase_by(scalar)
+                cur_coef.increase_by(scalar)
 
                 # Now take care of 0 coefficient
-                if cur_val.val == 0:
+                if cur_coef.val == 0:
                     del output.coefMap[key]
+                    term_deleted = True
 
-        # TODO: recalculate bigrade
+        # Now we update bigrades
+        if output.bigrade is not None:
+            # If the original bigrade exists but is not equal to that of the other, the bigrade become undefined
+            if output.bigrade != other.bigrade:
+                output.bigrade = None
+        elif term_deleted:
+            # If the original bigrade did not exist and adding a new polynomial results in deletion of some terms,
+            # the resulting polynomial may become homogeneous again
+            output._update_bigrade()
+
         return output
 
     def __mul__(self, other):
-        pass
-
-    def _calculate_bigrade(self) -> ndarray:
         if len(self.coefMap) == 0:
-            return array([])
+            return deepcopy(self)
+        if len(other.coefMap) == 0:
+            return other
+
+        # From now on we may assume that both operands are non-zero
+        output = Element(self.page)
+        if self.bigrade is None or other.bigrade is None:
+            output.bigrade = None
+        else:
+            output.bigrade = self.bigrade + other.bigrade
+
+        for deg_1, coef_1 in self.coefMap.items():
+            for deg_2, coef_2 in other.coefMap.items():
+                output.coefMap[deg_1 + deg_2] = coef_1 * coef_2
+
+        return output
+
+    def _update_bigrade(self):
+        if len(self.coefMap) == 0:
+            self.bigrade = DOArray([])
+            return
         _iter = self.coefMap.keys().__iter__()  # get the key iterator
-        output = _iter.__next__().combo(self.page.generator_bigrades)  # get the first key and calculate bigrade
+        res = dot(_iter.__next__(), self.page.generator_bigrades)  # get the first key and calculate bigrade
         try:
             while True:
-                if not (_iter.__next__().combo(self.page.generator_bigrades) == output).all():
-                    return array([])
+                if dot(_iter.__next__(), self.page.generator_bigrades) != res:
+                    self.bigrade = None
+                    return
         except StopIteration:
-            return output
+            assert isinstance(res, DOArray)
+            self.bigrade = res
+            return
 
     def __str__(self):
         output = ""

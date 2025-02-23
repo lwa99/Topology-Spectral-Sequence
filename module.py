@@ -1,7 +1,8 @@
-from element import DOArray
+from tools import DOArray
 from element import Element
 from page import Page
 import numpy as np
+
 
 class Initializer:
     def __init__(self, page, bigrade):
