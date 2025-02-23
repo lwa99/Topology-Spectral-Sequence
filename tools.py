@@ -41,5 +41,5 @@ class DOArray(ndarray):
     #     except StopIteration:
     #         return output
 
-    def __str__(self):
-        return "DOArray:\n" + super().__str__()
+    # def __str__(self):
+    #     return "DOArray:\n" + super().__str__()

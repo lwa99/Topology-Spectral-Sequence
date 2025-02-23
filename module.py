@@ -17,7 +17,7 @@ class Initializer:
         """
         if idx == self.page.gen_num:  # 所有变量的指数都已经选定
             current_exp = np.array(current_exp)
-            if np.all(self.page.generator_bigrades @ current_exp == self.bigrade):
+            if np.all(current_exp @ self.page.generator_bigrades == self.bigrade):
                 self.basis.append(DOArray(current_exp))
             return
 
@@ -36,16 +36,16 @@ class Initializer:
 if __name__ == "__main__":
     # 生成测试 Page
     generators = ["x", "y"]
-    generator_bigrades = np.array([[1, 2], [3, 4]])  # 2x2 矩阵，每列是一个 generator 的 bigrade
+    generator_bigrades = DOArray([[1, 2], [3, 4]])  # 2x2 矩阵，每列是一个 generator 的 bigrade
     c = 7  # 质数特征
 
-    page = Page(generators, generator_bigrades, c)
+    _page = Page(generators, generator_bigrades, c)
 
     # 设定要测试的 bigrade
-    bigrade = [5, 5]  
+    _bigrade = [7, 10]
 
     # 初始化并计算 basis
-    initializer = Initializer(page, bigrade)
+    initializer = Initializer(_page, _bigrade)
     basis = initializer.get_basis()
 
     # 打印 basis 结果
