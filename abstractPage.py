@@ -1,28 +1,17 @@
-from tools import DOArray
+from tools import Matrix, Prime
 
 
 class AbstractPage:
-    @staticmethod
-    def _isprime(n) -> bool:
-        if n < 2:
-            return False
-        i = 2
-        while i * i <= n:
-            if n % i == 0:
-                return False
-            i += 1
-        return True
-
-    def __init__(self, generators: list[str], generator_bigrades: DOArray, c: int):
+    def __init__(self, generators: list[str], generator_bigrades: Matrix, c: int):
         """
         :param generators: Names of the generators
         :param generator_bigrades: Bigrades of the generators
         :param c: Order (and characteristic) of the base field: need to be prime
         """
-        assert len(generators) == len(generator_bigrades)
+        assert len(generators) == len(generator_bigrades) / 2
         self.generators = generators
-        self.generator_bigrades = generator_bigrades
-        assert self._isprime(c)
+        self.generator_bigrades: Matrix = generator_bigrades
+        assert Prime.is_prime(c)
         self.c = c
 
     @property

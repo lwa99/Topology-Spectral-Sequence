@@ -1,9 +1,8 @@
 from sortedcontainers import SortedDict
 from scalar import Scalar
 from abstractPage import AbstractPage
-from tools import DOArray
+from tools import Matrix
 from copy import deepcopy
-from numpy import dot
 
 
 class Element:
@@ -15,14 +14,14 @@ class Element:
     For zero polynomial, we define its bigrade to be empty: DOArray([]).
     For inhomogeneous (and thus non-zero) polynomial, we define its bigrade to be None.
     """
-    def __init__(self, page: AbstractPage, degrees: DOArray = None, coef: Scalar = None):
+    def __init__(self, page: AbstractPage, degrees: Matrix = None, coef: Scalar = None):
         self.page = page
         self.coefMap = SortedDict()
-        self.bigrade = DOArray([])
+        self.bigrade = Matrix([])
         if degrees is not None:
             assert len(degrees) == self.page.gen_num
             self.coefMap[degrees] = coef
-            self.bigrade = dot(degrees, self.page.generator_bigrades)
+            self.bigrade = self.page.generator_bigrades * degrees
 
     def __add__(self, other: 'Element'):
         if len(self.coefMap) == 0:
@@ -84,17 +83,17 @@ class Element:
 
     def _update_bigrade(self):
         if len(self.coefMap) == 0:
-            self.bigrade = DOArray([])
+            self.bigrade = Matrix([])
             return
         _iter = self.coefMap.keys().__iter__()  # get the key iterator
-        res = dot(_iter.__next__(), self.page.generator_bigrades)  # get the first key and calculate bigrade
+        res = self.page.generator_bigrades * _iter.__next__()  # get the first key and calculate bigrade
         try:
             while True:
-                if dot(_iter.__next__(), self.page.generator_bigrades) != res:
+                if self.page.generator_bigrades * _iter.__next__() != res:
                     self.bigrade = None
                     return
         except StopIteration:
-            assert isinstance(res, DOArray)
+            assert isinstance(res, Matrix)
             self.bigrade = res
             return
 
@@ -112,8 +111,8 @@ class Element:
 
 
 if __name__ == "__main__":
-    dc_1 = DOArray((1, 2, 3))
-    dc_2 = DOArray((1, 3, 2))
+    dc_1 = Matrix((1, 2, 3))
+    dc_2 = Matrix((1, 3, 2))
     for _i in dc_1:
         print(_i)
     print(dc_1 < dc_2)
