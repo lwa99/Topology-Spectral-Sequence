@@ -1,46 +1,70 @@
 from tools import Matrix, pprint
 from page import Page
-import numpy as np
 
 
-class Initializer:
+class Module:
     def __init__(self, page: Page, bigrade: Matrix):
         self.page = page
         assert bigrade.shape == (2, 1)
         self.bigrade = bigrade
         self.basis = []
-        self._calculate_basis()
 
-    def _generate_basis(self, current_exp, idx):
-        """
-        递归生成所有可能的指数组合，使得 generator_bigrades @ exponents == bigrade
-        """
-        if idx == self.page.gen_num:  # 所有变量的指数都已经选定
-            current_exp = np.array(current_exp)
-            if np.all(current_exp @ np.array(self.page.generator_bigrades) == self.bigrade):
-                self.basis.append(Matrix(current_exp))
+        # Start Generating Basis
+
+        # 1 Only one generator
+        if self.page.gen_num == 1:
+            exponent = self.bigrade[0] // self.page.generator_bigrades[0, 0]
+            if self.page.generator_bigrades[:0] * exponent == self.bigrade:
+                self.basis.append(Matrix([exponent]))
+                return
+
+        # 2: Two or more generators
+        # In current version, we assume that the first two bigrades are linearly independent.
+        adj_A = Matrix([
+            [self.page.generator_bigrades[1, 1], -self.page.generator_bigrades[0, 1]],
+            [-self.page.generator_bigrades[1, 0], self.page.generator_bigrades[0, 0]]
+        ])
+        d = adj_A.det()  # det(adj_A) = det(A) in this case
+        assert d != 0
+
+        def check_to_add(_b: Matrix, tail: Matrix = None):
+            # We want to verify that elements of A^{-1}b are positive integers. The method is to verify that
+            # element in adj(A)b are positive multiples of der(A)
+            scaled_first_two = adj_A * _b
+            for i in scaled_first_two:
+                if i * d < 0 or i % d != 0:
+                    break
+            else:
+                if tail is None:
+                    self.basis.append(scaled_first_two / d)
+                else:
+                    self.basis.append((scaled_first_two / d).col_join(tail))
+
+        # 2.1 Exactly two generators
+        if self.page.gen_num == 2:
+            check_to_add(self.bigrade)
             return
 
-        # 计算当前变量的指数上限
-        max_exp = self.bigrade // np.array(self.page.generator_bigrades)[:, idx]
-        max_exp = np.min(max_exp)  # 取所有限制中的最小值，防止指数超限
+        # 2.2 More than two generators
+        bounds = self._calculate_bounds()[:-2]  # we only care about the bounds of last n - 2 variables
+        current_exp = [0] * (self.page.gen_num - 2)
+        while True:
+            try:
+                b = self.bigrade - self.page.generator_bigrades[:, 2:] * Matrix(current_exp)
+                check_to_add(b, Matrix(current_exp))
+                current_exp = Module._next_exponent(current_exp, bounds)
+            except StopIteration:
+                break
 
-        # 递归枚举当前变量的指数
-        for exp in range(max(0, max_exp) + 1):
-            self._generate_basis(current_exp + [exp], idx + 1)
+    def _calculate_bounds(self):
+        """
+        This method finds the bounds of the exponents of each variable
+        """
 
-    def _calculate_basis(self):
         bg = self.page.generator_bigrades
-
-        # Classical Adjugate of a 2x2 matrix
-        # inv = Matrix([[bg[1, 1], -bg[0, 1]], [-bg[1, 0], bg[0, 0]]])
-        # b = inv * self.bigrade
-
-        # Now, we want to find the bound of the variables
         bounds = [-1] * self.page.gen_num
         skipped_index = []
         for j in range(self.page.gen_num):
-            print(j)
             if bg[0, j] > 0:
                 bounds[j] = self.bigrade[0] // bg[0, j]
                 if bg[1, j] > 0 and self.bigrade[1] // bg[1, j] < bounds[j]:
@@ -63,8 +87,20 @@ class Initializer:
                 bounds[j] = cap // bg[1, j]
                 if bounds[j] < 0:
                     return  # there is no possible exponent that can give the bigrade.
+        return bounds
 
-        print(bounds)
+    @staticmethod
+    def _next_exponent(cur_exponent: list, bounds: list):
+        # Find the last index that is not at the bound
+        critical_index = len(bounds) - 1
+        while cur_exponent[critical_index] == bounds[critical_index]:
+            critical_index -= 1
+            if critical_index == -1:
+                raise StopIteration
+        output = cur_exponent[:critical_index + 1]
+        output[critical_index] += 1
+        output.extend([0] * (len(bounds) - critical_index - 1))
+        return output
 
     def get_basis(self):
         return self.basis
@@ -72,8 +108,8 @@ class Initializer:
 
 if __name__ == "__main__":
     # 生成测试 Page
-    generators = ["x", "y", "z"]
-    generator_bigrades = Matrix([[1, 0, 3], [4, -3, 6]])  # 2x2 矩阵，每列是一个 generator 的 bigrade
+    generators = ["x", "y", "z", "w"]
+    generator_bigrades = Matrix([[1, 0, 4, 2], [4, -3, 6, 7]])  # 2x2 矩阵，每列是一个 generator 的 bigrade
     c = 7  # 质数特征
     print("Generator bigrades:")
     pprint(generator_bigrades)
@@ -81,13 +117,15 @@ if __name__ == "__main__":
     _page = Page(generators, generator_bigrades, c)
 
     # 设定要测试的 bigrade
-    _bigrade = Matrix([7, 10])
+    _bigrade = Matrix([10, 10])
     print("Target:")
     pprint(_bigrade)
 
     # 初始化并计算 basis
-    initializer = Initializer(_page, _bigrade)
+    initializer = Module(_page, _bigrade)
     basis = initializer.get_basis()
+
+    # print("next:", _next_exponent(Matrix([1, 10, 10]), [10, 10, 10]))
 
     # 打印 basis 结果
     print("Computed Basis:")
