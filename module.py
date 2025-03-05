@@ -4,11 +4,12 @@ from page import Page
 
 class Module:
     def __init__(self, page: Page, bigrade: Matrix):
+        # initialization should only be called by page.getModule
         self.page = page
+        self.page.calculated_modules.append(self)
         assert bigrade.shape == (2, 1)
         self.bigrade = bigrade
         self.basis = []
-
         # Start Generating Basis
 
         # 1 Only one generator
@@ -114,7 +115,7 @@ if __name__ == "__main__":
     print("Generator bigrades:")
     pprint(generator_bigrades)
 
-    _page = Page(generators, generator_bigrades, c)
+    _page = Page(generators, generator_bigrades, c, 1)
 
     # 设定要测试的 bigrade
     _bigrade = Matrix([10, 10])
@@ -124,8 +125,6 @@ if __name__ == "__main__":
     # 初始化并计算 basis
     initializer = Module(_page, _bigrade)
     basis = initializer.get_basis()
-
-    # print("next:", _next_exponent(Matrix([1, 10, 10]), [10, 10, 10]))
 
     # 打印 basis 结果
     print("Computed Basis:")

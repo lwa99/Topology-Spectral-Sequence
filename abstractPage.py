@@ -2,7 +2,7 @@ from tools import Matrix, Prime
 
 
 class AbstractPage:
-    def __init__(self, generators: list[str], generator_bigrades: Matrix, c: int):
+    def __init__(self, generators: list[str], generator_bigrades: Matrix, c: int, page_num):
         """
         :param generators: Names of the generators
         :param generator_bigrades: Bigrades of the generators
@@ -13,6 +13,8 @@ class AbstractPage:
         self.generator_bigrades: Matrix = generator_bigrades
         assert Prime.is_prime(c)
         self.c = c
+        self.page_num = page_num
+        self.calculated_modules = []
 
     @property
     def gen_num(self) -> int:

@@ -1,12 +1,19 @@
 from scalar import Scalar
 from abstractPage import AbstractPage
 from element import Element
+from module import Module
 from tools import Matrix, pprint
 
 
 class Page(AbstractPage):
     def get_scalar(self, val) -> Scalar:
         return Scalar(self.c, val)
+
+    def get_module(self, bigrade: Matrix):
+        for module in self.calculated_modules.keys():
+            if bigrade == module:
+                return module
+            return Module(self, bigrade)
 
 
 if __name__ == "__main__":
@@ -15,7 +22,7 @@ if __name__ == "__main__":
     except AssertionError:
         print("Debug Mode: ON")
 
-    p = Page(["x", "y", "z"], Matrix([[1, 2, 3], [3, 4, 5]]), 7)
+    p = Page(["x", "y", "z"], Matrix([[1, 2, 3], [3, 4, 5]]), 7, 1)
     print("Generator Bigrades: (Displayed as Columns)")
     pprint(p.generator_bigrades)
     e_1 = Element(p, Matrix([1, 2, 0]), p.get_scalar(3))
