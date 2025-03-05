@@ -32,7 +32,11 @@ class Differential:
 
                 # Convert scalar coefficient to Element
                 coefficient_scalar = self.page.get_scalar(exponent)  # Scalar 类型
-                coefficient_element = Element(self.page, Matrix([[0] * self.page.gen_num]), coefficient_scalar)  # 转换成 Element
+                coefficient_element = Element(
+                    self.page, 
+                    Matrix.zeros(self.page.gen_num, 1),  # ✅ 确保是 (3,1) 矩阵
+                    coefficient_scalar
+                )  
 
                 # Multiply the differential term by the scalar correctly
                 differential_term = diff_matrix[i][0]  # Now accessing correctly
@@ -40,11 +44,16 @@ class Differential:
 
                 # 更新指数
                 term.bigrade = self.page.generator_bigrades * new_exponent
-                term.coefMap[new_exponent] = term.coefMap.pop(differential_term.bigrade)
+                
+                # ✅ 安全更新 coefMap，避免 KeyError
+                if differential_term.bigrade in term.coefMap:
+                    term.coefMap[new_exponent] = term.coefMap.pop(differential_term.bigrade)
 
                 differential_result += term  # Sum up the differentials
 
         return differential_result
+
+
 
 
 if __name__ == "__main__":
