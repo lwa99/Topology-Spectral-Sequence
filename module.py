@@ -1,9 +1,9 @@
 from tools import Matrix, pprint
-from page import Page
+from abstractPage import AbstractPage
 
 
 class Module:
-    def __init__(self, page: Page, bigrade: Matrix):
+    def __init__(self, page: AbstractPage, bigrade: Matrix):
         # initialization should only be called by page.getModule
         self.page = page
         self.page.calculated_modules.append(self)
@@ -115,10 +115,10 @@ if __name__ == "__main__":
     print("Generator bigrades:")
     pprint(generator_bigrades)
 
-    _page = Page(generators, generator_bigrades, c, 1)
+    _page = AbstractPage(generators, generator_bigrades, c, 1)
 
     # 设定要测试的 bigrade
-    _bigrade = Matrix([10, 10])
+    _bigrade = Matrix([1000, 1000])
     print("Target:")
     pprint(_bigrade)
 
