@@ -6,6 +6,13 @@ from tools import Matrix, pprint
 
 
 class Page(AbstractPage):
+    def set_differential(self):
+        """
+        Set the information of the differential
+        """
+
+        raise NotImplementedError
+
     def get_scalar(self, val) -> Scalar:
         return Scalar(self.c, val)
 
@@ -14,6 +21,23 @@ class Page(AbstractPage):
             if bigrade == module:
                 return module
             return Module(self, bigrade)
+
+    def _calculate_next_page_module(self):
+        """
+        Calculate the module of the next page at a give bigrade
+        """
+        # Step 1: Locate the "previous" module and the "next" module
+
+
+
+        # Step 2: Calculate the matrix representations of differential
+
+
+        # Step 3: Return kernel / image
+        raise NotImplementedError
+
+    def _compare_elements(self, e1, e2):
+        raise NotImplementedError
 
 
 if __name__ == "__main__":
