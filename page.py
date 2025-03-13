@@ -1,7 +1,7 @@
 from scalar import Scalar
 from abstractPage import AbstractPage
 from element import Element
-from numpy import ndarray, array
+from tools import DOArray
 
 
 class Page(AbstractPage):
@@ -15,11 +15,11 @@ if __name__ == "__main__":
     except AssertionError:
         print("Debug Mode: ON")
 
-    p = Page(["x", "y"], array([[1, 2], [3, 4]]), 7)
-    print(p.get_scalar(9))
-    e_1 = Element(p, array([1, 2]), p.get_scalar(3))
-    print(e_1)
-    e_2 = Element(p, array([1, 2]), p.get_scalar(5))
-    e_3 = e_1 + e_2
-    print(e_3)
-    print(e_3._calculate_bigrade())
+    p = Page(["x", "y"], DOArray([[1, 2], [3, 4]]), 7)
+    print("Generator Bigrades:\n", p.generator_bigrades)
+    e_1 = Element(p, DOArray([1, 2]), p.get_scalar(3))
+    print("e_1: ", e_1)
+    e_2 = Element(p, DOArray([3, 1]), p.get_scalar(5))
+    e_3 = e_1 * e_2
+    print("e_3: ", e_3)
+    print("e_3 bigrade:", e_3.bigrade)

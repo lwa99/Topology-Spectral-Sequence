@@ -1,4 +1,4 @@
-import numpy as np
+from tools import DOArray
 
 
 class AbstractPage:
@@ -13,7 +13,7 @@ class AbstractPage:
             i += 1
         return True
 
-    def __init__(self, generators: list[str], generator_bigrades: np.ndarray, c: int):
+    def __init__(self, generators: list[str], generator_bigrades: DOArray, c: int):
         """
         :param generators: Names of the generators
         :param generator_bigrades: Bigrades of the generators
