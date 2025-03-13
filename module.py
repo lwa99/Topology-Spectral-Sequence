@@ -2,6 +2,36 @@ from tools import Matrix, pprint
 from abstractPage import AbstractPage
 
 
+def convex_integral_combinations():
+    """
+    This function is devoted to solve the following problem:
+
+    Let $b$ be a length n (>0) collection of 2-dimensional vectors and let $v$ be a specific 2-dimensional vector.
+    Find all combinations of vectors in $b$ with positive integer coefficients that can sum up to $v$.
+    We assume that the first components of vectors in $b$ and both components of $v$ are non-negative.
+
+    Solution:
+    Step 1: If $b$ contains only 1 vector $u$, test if $v$ is a multiple of $u$.
+    Step 2: If $b$ contains exactly 2 vectors $u_1, u_2$.
+        Step 2.1 If $u_1, u_2$ are linearly dependent (decide by calculating determinant), use step 1
+        Step 2.2 If they are linearly independent, solve the linear system and check if the coefficients work out.
+    Step 3: If $b$ contains more than 2 vectors, $u_1, dots, u_n$
+        Step 3.1 Scan through the list to see if there are two independent columns, if no, use step 1
+        Step 3.2 Call the two independent columns "free". Calculate the bounds of coefficients corresponding to the
+            free columns. (The bounds exists because the first components are positive).
+        Step 3.3 Traverse through all linear combinations of the free columns within the bounds and check each case if
+            the coefficients work out.
+    """
+    pass
+
+
+def reduce_basis_information():
+    """
+
+    """
+    pass
+
+
 class Module:
     def __init__(self, page: AbstractPage, bigrade: Matrix):
         # initialization should only be called by page.getModule
@@ -124,9 +154,9 @@ if __name__ == "__main__":
 
     # 初始化并计算 basis
     initializer = Module(_page, _bigrade)
-    basis = initializer.get_basis()
+    _basis = initializer.get_basis()
 
     # 打印 basis 结果
     print("Computed Basis:")
-    for monomial in basis:
+    for monomial in _basis:
         print(monomial)
