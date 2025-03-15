@@ -2,7 +2,7 @@ from scalar import Scalar
 from abstractPage import AbstractPage
 from element import Element
 from module import Module
-from tools import Matrix, pprint
+from utilities import Matrix, pprint
 
 
 class Page(AbstractPage):

@@ -1,4 +1,4 @@
-from tools import Matrix, Prime
+from utilities import Matrix, Prime
 
 
 class AbstractPage:

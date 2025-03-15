@@ -1,4 +1,4 @@
-from tools import Matrix
+from utilities import Matrix
 from page import Page
 from element import Element
 from scalar import Scalar

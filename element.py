@@ -1,7 +1,7 @@
 from sortedcontainers import SortedDict
 from scalar import Scalar
 from abstractPage import AbstractPage
-from tools import Matrix
+from utilities import Matrix
 from copy import deepcopy
 
 
@@ -90,7 +90,7 @@ class Element:
         try:
             while True:
                 if self.page.generator_bigrades * _iter.__next__() != res:
-                    self.bigrade = None
+                    self.bigrade = None  # Self is non-homogeneous
                     return
         except StopIteration:
             assert isinstance(res, Matrix)

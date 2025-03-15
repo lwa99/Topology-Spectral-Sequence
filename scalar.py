@@ -1,6 +1,6 @@
 class Scalar:
     """
-    In out setting, scalars are elements in a fintie prime Field of order (and characteristic) c
+    In our setting, scalars are elements in a fintie prime Field of order (and characteristic) c
     """
     def __init__(self, c: int, val):
         self.c = c
@@ -50,7 +50,3 @@ class Scalar:
     @staticmethod
     def get_empty_scalar(c: int):
         return Scalar(c, None)
-
-
-if __name__ == "__main__":
-    pass
