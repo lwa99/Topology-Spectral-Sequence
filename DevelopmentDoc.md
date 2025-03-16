@@ -18,6 +18,10 @@ A universe is a set of elements. Given any bigrade, it should know the dimension
 
 
 
+It also stores the subspaces corresponding to each bigrade.
+
+
+
 ##### Homogeneous Element
 
 A homogeneous element is represented by a bigrade and its coordinate on the standard basis associated with the bigrade.
@@ -62,13 +66,17 @@ There are three kinds of polynomials. When each operation is preformed, we need 
 
 3. Homogeneous Non-zero Polynomial:    bigrade is non-trivial
 
+Difficulties when handling polynomial is that when each polynomial is created from any operation, we need to drop off components that are actually zero. This means polynomials are classified in real time.
+
+
+
 Information about a polynomials:
 
 1. A sorted dictionary that map exponents to coefficients.
 
 2. A sorted dictionary that map bigrades to coordinates. (Derived from the first one)
 
-Difficulties when handling polynomial is that when each polynomial is created from any operation, we need to drop off components that are actually zero.
+
 
 ##### Homogeneous Polynomial
 
@@ -76,22 +84,8 @@ Inherits polynomial and homogeneous element
 
 
 
+##### Module
 
-
-
-
-Key Objects:
-
-1. Spectral Sequence
-
-2. Page
-
-3. Polynomial
-
-4. Monomial
-
-5. Module
-
-6. Differential
+##### Differential
 
 
