@@ -252,7 +252,7 @@ def convex_integral_combinations(b: Matrix, v: Vector) -> list[Vector]:
         for _i in scaled_res:
             if _i * d < 0 or _i % d != 0:
                 return None
-        return scaled_res[0] // d, scaled_res[1] //d
+        return scaled_res[0] // d, scaled_res[1] // d
 
     # Step 3.1 Exactly two columns
     if n == 2:
@@ -316,8 +316,8 @@ if __name__ == "__main__":
         [2, 4, 6, 2]
     ])
     tv = Vector([[100], [100]])
-    for vec in convex_integral_combinations(tb, tv):
-        assert tb * vec == tv
-        for c in vec:
-            assert c >= 0
-        pprint(vec)
+    for t_vec in convex_integral_combinations(tb, tv):
+        assert tb * t_vec == tv
+        for t_c in t_vec:
+            assert t_c >= 0
+        pprint(t_vec)
