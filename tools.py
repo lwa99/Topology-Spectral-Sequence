@@ -130,6 +130,40 @@ class LinearTransformation:
         pass
 
 
+def enumerate_exponents(page: Page, target_bigrade: Matrix):
+    """
+    枚举所有满足:
+         page.generator_bigrades * exponent == target_bigrade
+    的非负整数指数组合。返回值为一列表，每个元素为形如 Matrix([[e1], [e2], ... [en]]) 的指数列，
+    其中 n = page.gen_num。
+    """
+    results = []
+    n = page.gen_num
+    # 设 generator_bigrades 的行数为 r, 则 target_bigrade 的形状应为 (r, 1)
+    r = page.generator_bigrades.shape[0]
+
+    def rec(i, current):
+        if i == n:
+            exp_matrix = Matrix([[x] for x in current])
+            # 判断是否满足：generator_bigrades * exp_matrix == target_bigrade
+            if page.generator_bigrades * exp_matrix == target_bigrade:
+                results.append(exp_matrix)
+            return
+        # 对于每个生成元 i，计算一个粗略的上界：
+        bounds = []
+        for j in range(r):
+            gen_val = page.generator_bigrades[j, i]
+            if gen_val > 0:
+                candidate = target_bigrade[j, 0] // gen_val
+                bounds.append(candidate)
+        # 如果在某些坐标上没有正贡献，则我们限定该生成元指数为 0
+        max_exp = min(bounds) if bounds else 0
+        for exp in range(max_exp + 1):
+            rec(i + 1, current + [exp])
+    rec(0, [])
+    return results
+
+
 if __name__ == "__main__":
     a = Matrix([[1, 2], [2, 3], [3, 4]])
     b = Matrix([[1, 2], [2, 3], [3, 4]])
