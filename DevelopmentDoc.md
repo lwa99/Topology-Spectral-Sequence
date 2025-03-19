@@ -16,29 +16,19 @@
 
 A universe is a set of elements. Given any bigrade, it should know the dimension of the vector space corresponding to the bigrade.
 
-
-
 It also stores the subspaces corresponding to each bigrade.
-
-
 
 ##### Homogeneous Element
 
 A homogeneous element is represented by a bigrade and its coordinate on the standard basis associated with the bigrade.
 
-
-
 ##### Subspace
 
 Linear subspace of homogeneous elements with the same bigrade. Represented by a basis and a kernel basis. Homogeneous elements with coordinate spanned by the kernel basis is treated as zero.
 
-
-
 ##### Transformation
 
 A transformation is defined by its image on some homogeneous elements. 
-
-
 
 ### Spectral Sequence Layer
 
@@ -68,24 +58,16 @@ There are three kinds of polynomials. When each operation is preformed, we need 
 
 Difficulties when handling polynomial is that when each polynomial is created from any operation, we need to drop off components that are actually zero. This means polynomials are classified in real time.
 
-
-
 Information about a polynomials:
 
 1. A sorted dictionary that map exponents to coefficients.
 
 2. A sorted dictionary that map bigrades to coordinates. (Derived from the first one)
 
-
-
 ##### Homogeneous Polynomial
 
 Inherits polynomial and homogeneous element
 
-
-
 ##### Module
 
 ##### Differential
-
-

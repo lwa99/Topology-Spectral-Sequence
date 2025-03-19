@@ -1,142 +1,81 @@
-from utilities import Matrix, pprint
-from abstractPage import AbstractPage
+from __future__ import annotations
+from typing import TYPE_CHECKING
 
+if TYPE_CHECKING:
+    from page import Page
+    from element import HomoPoly
 
-
-
-
-def reduce_basis_information():
-    """
-
-    """
-    pass
+from utilities import Matrix, Vector
 
 
 class Module:
-    def __init__(self, page: AbstractPage, bigrade: Matrix):
+    def __init__(self, page: Page, bigrade: Vector, basis: Matrix, ker_basis: Matrix):
         # initialization should only be called by page.getModule
         self.page = page
-        self.page.calculated_modules.append(self)
-        assert bigrade.shape == (2, 1)
+
+        """
+        The basis and ker_basis here are represented in the standard basis associated with the bigrade.
+        """
+        self.page = page
         self.bigrade = bigrade
-        self.basis = []
-        # Start Generating Basis
 
-        # 1 Only one generator
-        if self.page.gen_num == 1:
-            exponent = self.bigrade[0] // self.page.generator_bigrades[0, 0]
-            if self.page.generator_bigrades[:0] * exponent == self.bigrade:
-                self.basis.append(Matrix([exponent]))
-                return
+        # Calculate the actual basis.
+        combined: Matrix = Matrix.hstack(ker_basis, basis, Matrix.eye(basis.rows))
+        rref, pivots = combined.rref()
 
-        # 2: Two or more generators
-        # In current version, we assume that the first two bigrades are linearly independent.
-        adj_A = Matrix([
-            [self.page.generator_bigrades[1, 1], -self.page.generator_bigrades[0, 1]],
-            [-self.page.generator_bigrades[1, 0], self.page.generator_bigrades[0, 0]]
-        ])
-        d = adj_A.det()  # det(adj_A) = det(A) in this case
-        assert d != 0
+        ker_basis_idx = []
+        basis_idx = []
+        for i in pivots:
+            if i < ker_basis.cols:
+                ker_basis_idx.append(i)
+            elif i < ker_basis.cols + basis.cols:
+                basis_idx.append(i - ker_basis.cols)
 
-        def check_to_add(_b: Matrix, tail: Matrix = None):
-            # We want to verify that elements of A^{-1}b are positive integers. The method is to verify that
-            # element in adj(A)b are positive multiples of der(A)
-            scaled_first_two = adj_A * _b
-            for i in scaled_first_two:
-                if i * d < 0 or i % d != 0:
-                    break
-            else:
-                if tail is None:
-                    self.basis.append(scaled_first_two / d)
-                else:
-                    self.basis.append((scaled_first_two / d).col_join(tail))
+        self.sp_basis: Matrix = basis[:, basis_idx]
+        self.ker_basis: Matrix = ker_basis[:, ker_basis_idx]
 
-        # 2.1 Exactly two generators
-        if self.page.gen_num == 2:
-            check_to_add(self.bigrade)
-            return
+        if self.sp_basis.cols + self.ker_basis.cols > basis.cols:
+            raise ValueError("The kernel is not in the span")
 
-        # 2.2 More than two generators
-        bounds = self._calculate_bounds()[:-2]  # we only care about the bounds of last n - 2 variables
-        current_exp = [0] * (self.page.gen_num - 2)
-        while True:
-            try:
-                b = self.bigrade - self.page.generator_bigrades[:, 2:] * Matrix(current_exp)
-                check_to_add(b, Matrix(current_exp))
-                current_exp = Module._next_exponent(current_exp, bounds)
-            except StopIteration:
-                break
+        self.basis_inv: Matrix = rref[:, (ker_basis.cols + basis.cols):]
 
-    def _calculate_bounds(self):
-        """
-        This method finds the bounds of the exponents of each variable
-        """
+    def __contains__(self, e: HomoPoly):
+        if e.page != self.page:
+            return False
+        if e.isZero():
+            return True
+        return e.bigrade == self.bigrade
 
-        bg = self.page.generator_bigrades
-        bounds = [-1] * self.page.gen_num
-        skipped_index = []
-        for j in range(self.page.gen_num):
-            if bg[0, j] > 0:
-                bounds[j] = self.bigrade[0] // bg[0, j]
-                if bg[1, j] > 0 and self.bigrade[1] // bg[1, j] < bounds[j]:
-                    bounds[j] = self.bigrade[1] // bg[1, j]
-                continue
-            skipped_index.append(j)
+    def classify(self, vec: Vector):
+        assert len(vec) == self.basis_inv.cols
 
-        # Now, we are left with those generators with 0 in the first grade
-        if len(skipped_index) > 0:
-            cap = self.bigrade[1]
-            for j in range(self.page.gen_num):
-                if j in skipped_index:
-                    continue
-                if bg[1, j] * bg[1, skipped_index[0]] < 0:
-                    cap -= bg[1, j] * bounds[j]
+        indicator = self.basis_inv * vec
+        i = len(indicator) - 1
+        while indicator[i] == self.page.ss(0):
+            i -= 1
 
-            for j in skipped_index:
-                if bg[1, j] * bg[1, skipped_index[0]] <= 0:
-                    raise RuntimeError
-                bounds[j] = cap // bg[1, j]
-                if bounds[j] < 0:
-                    return  # there is no possible exponent that can give the bigrade.
-        return bounds
-
-    @staticmethod
-    def _next_exponent(cur_exponent: list, bounds: list):
-        # Find the last index that is not at the bound
-        critical_index = len(bounds) - 1
-        while cur_exponent[critical_index] == bounds[critical_index]:
-            critical_index -= 1
-            if critical_index == -1:
-                raise StopIteration
-        output = cur_exponent[:critical_index + 1]
-        output[critical_index] += 1
-        output.extend([0] * (len(bounds) - critical_index - 1))
-        return output
-
-    def get_basis(self):
-        return self.basis
+        if i == len(indicator) - 1 and i >= self.ker_basis.cols + self.sp_basis.cols:
+            return 2  # not spanned by the basis
+        elif i >= self.ker_basis.cols:
+            return 1  # spanned by the basis but not the kernel part
+        else:
+            return 0  # spanned by the kernel basis
 
 
 if __name__ == "__main__":
-    # 生成测试 Page
-    generators = ["x", "y", "z", "w"]
-    generator_bigrades = Matrix([[1, 0, 4, 2], [4, -3, 6, 7]])  # 2x2 矩阵，每列是一个 generator 的 bigrade
-    c = 7  # 质数特征
-    print("Generator bigrades:")
-    pprint(generator_bigrades)
-
-    _page = AbstractPage(generators, generator_bigrades, c, 1)
-
-    # 设定要测试的 bigrade
-    _bigrade = Matrix([1000, 1000])
-    print("Target:")
-    pprint(_bigrade)
-
-    # 初始化并计算 basis
-    initializer = Module(_page, _bigrade)
-    _basis = initializer.get_basis()
-
-    # 打印 basis 结果
-    print("Computed Basis:")
-    for monomial in _basis:
-        print(monomial)
+    from sympy import pprint
+    _basis = Matrix([
+        [1,  2],
+        [-1, 3],
+        [0,  0]
+    ])
+    _ker_basis = Matrix([
+        [1],
+        [1],
+        [0]
+    ])
+    m = Module(None, None, _basis, _ker_basis)
+    pprint(m.ker_basis)
+    pprint(m.sp_basis)
+    pprint(m.basis_inv)
+    print(m.classify(Vector([3, 3, 1])))

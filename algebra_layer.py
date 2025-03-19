@@ -24,7 +24,6 @@ Objectives:
 
 from utilities import Matrix, Vector
 from sortedcontainers import SortedDict
-from copy import deepcopy
 
 
 class Universe:
@@ -32,6 +31,7 @@ class Universe:
         self.subspaces = SortedDict([])
 
     def get_dimension(self, bigrade):
+        # This returns the dimension of the subspace in "absolute" sense.
         return 5  # This is a test case and should be overridden.
 
     def get_subspace(self, bigrade) -> 'Subspace':
@@ -42,44 +42,26 @@ class Universe:
             self.subspaces[bigrade] = output
             return output
 
-    def set_subspace(self, bigrade, basis, ker_basis):
-        self.subspaces[bigrade] = Subspace(self, bigrade, basis, ker_basis)
-
-    def generate_subspace(self, bigrade):
-        # This is the default case. We use the standard basis and no kernel.
-        return Subspace(self, bigrade, Matrix.eye(self.get_dimension(bigrade)), Matrix([]))
+    def generate_subspace(self, bigrade) -> 'Subspace':
+        raise NotImplementedError
 
 
 class HomoElement:
     """
-    Class of elements
-
-    This class will be inherited by the polynomial class, which represents elements in a bigraded algebra.
-
-    Note: we need to take care of bigrade carefully. For a polynomial, if any part
+    Homogeneous Elements.
     """
-    def __init__(self, universe: Universe, bigrade: Vector):
-        self.universe = universe
-        self.bigrade = bigrade
-
-    @property
-    def coordinate(self) -> Vector | None:
-        raise NotImplementedError
-
-    @property
-    def parent_space(self):
-        assert not self.isZero()
-        return self.universe.get_subspace(self.bigrade)
+    def __new__(cls, universe: Universe, bigrade: Vector, coordinate: Vector):
+        instance = super().__new__(cls)
+        instance.universe = universe
+        instance.bigrade = bigrade
+        instance.coordinate = coordinate
+        return instance
 
     def isZero(self):
-        raise NotImplementedError
-
-    def
-    def __sub__(self, other: 'HomoElement') -> 'HomoElement':
-        raise NotImplementedError
-
-    def __eq__(self, other: 'Monomial'):
-        return (self - other).isZero()
+        """
+        Since polynomials are classified in real time,
+        """
+        return self.bigrade == Vector([])
 
 
 class Subspace:
@@ -101,17 +83,11 @@ class Subspace:
         for i in basis_idx:
             self.basis = self.basis.row_join(basis.col(i))
 
-    def __contains__(self, e: Monomial):
+    def __contains__(self, e: HomoElement):
         return e.universe == self.universe and (e.isZero() or e.bigrade == self.bigrade)
 
-    def compare(self, e1: Monomial, e2: Monomial):
-        assert e1 in self and e2 in self
-        return self.ker_basis.col_spans(e1.coordinate - e2.coordinate)
-
-    def kernelContains(self, e: Monomial):
-        assert e in self
-        return self.ker_basis.col_spans(e.coordinate)
-
+    def kernelContains(self, vec: Vector):
+        return self.ker_basis.col_spans(vec)
 
 
 class LinearTransformation:
@@ -120,13 +96,37 @@ class LinearTransformation:
     on a specific set of vectors.
     """
 
-    def __init__(self, images: dict[Monomial, Monomial]):
+    def __init__(self, universe, images: dict[HomoElement, HomoElement]):
+        self.universe: Universe = universe
         self.images = images
+
+    def update_images(self):
+        raise NotImplementedError
 
     def get_matrix(self, from_bigrade, to_bigrade):
         """
-        Step 1: Take all elements with known images, generate all convex integral combination that matches the
-        from_bigrade.
-        Step 2: Enlarge the known elements to a basis.
-        Step 3: Get the subspace corresponding to the to_bigrade and
+        Step 1: Get known elements of the same bigrade.
+        Step 2: Enlarge them to a basis.
+        Step 3: Join the coordinates of images.
+        Step 4: Change basis back to standard
         """
+        self.update_images()
+        known_elements = Matrix([])
+        for e in self.images.keys():
+            if e.bigrade == from_bigrade:
+                known_elements.row_join(e)
+
+        # Enlarge known elements to a basis
+        from_basis = self.universe.get_subspace(from_bigrade).basis
+        idx1, idx2 = Matrix.double_reduction(known_elements, from_basis)
+
+        # Now we build the temp basis and the matrix representation from temp basis to standard basis.
+        temp_output = temp_basis = Matrix([])
+        for i in idx1:
+            temp_basis.row_join(known_elements[i])
+            temp_output.row_join(self.images[known_elements[i]].coordinate)
+        for i in idx2:
+            temp_basis.row_join(from_basis[i])
+            temp_output.row_join(Vector([0] * self.universe.get_dimension(to_bigrade)))
+
+        return temp_output * temp_basis.inv()
