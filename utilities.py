@@ -1,6 +1,8 @@
-from sympy import Matrix as _Matrix, pprint
-from sortedcontainers import SortedList
+from __future__ import annotations
+from sympy import Matrix as _Matrix
+from sortedcontainers import SortedList, SortedDict
 from math import ceil, sqrt
+from copy import deepcopy
 
 
 class Prime:
@@ -44,63 +46,9 @@ class Prime:
             return cls.prime_list[:]
 
 
-class Scalar:
-    """
-    In our setting, scalars are elements in a fintie prime Field of order (and characteristic) c
-    """
-    def __init__(self, c: int, val):
-        self.c = c
-        if val is not None:
-            self.val = val % self.c
-        else:
-            self.val = None
-
-    # Basic Functionalities
-
-    def __eq__(self, other):
-        return self.c == other.c and (self.val == other.val)
-
-    def __str__(self):
-        return str(self.val) + " (mod " + str(self.c) + ")"
-
-    # Modifiers
-    def increase_by(self, s: 'Scalar'):
-        self.val = (self.val + s.val) % self.c
-
-    def multiply_by(self, s: 'Scalar'):
-        self.val = (self.val * s.val) % self.c
-
-    def take_inverse(self):
-        self.val = pow(self.val, -1, self.c)
-
-    def update(self, val):
-        self.val = val % self.c
-
-    # Operations that yields new objects
-    def __add__(self, other: 'Scalar'):
-        return Scalar(self.c, self.val + other.val)
-
-    def __sub__(self, other):
-        return Scalar(self.c, self.val - other.val)
-
-    def __mul__(self, other):
-        return Scalar(self.c, self.val * other.val)
-
-    def get_inverse(self):
-        return Scalar(self.c, pow(self.val, -1, self.c))
-
-    def __truediv__(self, other: 'Scalar'):
-        return Scalar(self.c, self.val * pow(other.val, -1, self.c))
-
-    # Static method to produce empty scalar wrapper
-    @staticmethod
-    def get_empty_scalar(c: int):
-        return Scalar(c, None)
-
-
 class Matrix(_Matrix):
     """
-    Ndarray with dictionary order.
+    Matrix with dictionary order.
     __eq__ is rewritten to compare the whole matrix.
     __hash__ calls the hash function for tuples.
     """
@@ -144,6 +92,12 @@ class Matrix(_Matrix):
         # Compare ranks
         return self.rank() == augmented_matrix.rank()
 
+    def __repr__(self):
+        return f"Matrix {self.tolist()}"
+
+    def __str__(self):
+        return self.__repr__()
+
 
 class Vector(Matrix):
     def __new__(cls, *args, **kwargs):
@@ -156,6 +110,101 @@ class Vector(Matrix):
         if isinstance(key, int):
             return super().__getitem__((key, 0))
         return super().__getitem__(key)
+
+    def __repr__(self):
+        return f"Vector {self.tolist()}"
+
+
+class Exponent(Vector):
+    def __repr__(self):
+        return f"Exponent {self.tolist()}"
+
+
+class Polynomial(SortedDict):
+    base_field = None
+    variables = None
+
+    @classmethod
+    def initiate(cls, base_field, variables):
+        if Polynomial.base_field is not None:
+            raise RuntimeWarning("Polynomial: Base Field Overridden")
+        cls.base_field = base_field
+        cls.variables = variables
+
+    def __add__(self, other: Polynomial):
+        assert self.base_field is not None, "Set the base field first."
+        if len(self) == 0:
+            return deepcopy(other)
+        if len(other) == 0:
+            return deepcopy(self)
+
+        output = deepcopy(self)
+        for exp, coef in other.items():
+            if exp in output.keys():
+                temp = output[exp] + coef
+                if temp == self.base_field(0):
+                    del output[exp]
+                else:
+                    output[exp] = temp
+            else:
+                output[exp] = coef
+        return output
+
+    def __mul__(self, other):
+        assert self.base_field is not None, "Set the base field first."
+        if isinstance(other, Polynomial):
+            if len(self) == 0:
+                return deepcopy(self)
+            if len(other) == 0:
+                return deepcopy(other)
+
+            # From now on we may assume that both operands are non-zero
+            output = Polynomial()
+            for exp_1, coef_1 in self.items():
+                for exp_2, coef_2 in other.items():
+                    output[exp_1 + exp_2] = coef_1 * coef_2
+        else:
+            output = deepcopy(self)
+            for exp, coef in output.items():
+                output[exp] = coef * other
+        return output
+
+    def __rmul__(self, other):
+        return self * other
+
+    def __sub__(self, other):
+        return self + self.base_field(-1) * other
+
+    def __pow__(self, power, modulo=None):
+        assert power >= 0
+        if power == 0:
+            return monomial([0]*len(self.variables))
+        if power == 1:
+            return self
+        temp = (self ** (power // 2))
+        if power % 2 == 0:
+            return temp * temp
+        else:
+            return temp * temp * self
+
+    def __repr__(self):
+        output = ""
+        if len(self) == 0:
+            return "zero polynomial"
+        for key, value in self.items():
+            output += str(value.val)
+            for i, exponent in enumerate(key):
+                output += f"({self.variables[i]}^{exponent})"
+            output += " + "
+        output = output[:-2]
+        return output
+
+    def __str__(self):
+        return self.__repr__()
+
+
+def monomial(exp: list):
+    return Polynomial({Exponent(exp): Polynomial.base_field(1)})
 
 
 # _stored: dict[tuple[int, int], tuple[tuple[int]]] = {(0, 1): ((0,),)}
@@ -311,13 +360,25 @@ def convex_integral_combinations(b: Matrix, v: Vector) -> list[Vector]:
 
 
 if __name__ == "__main__":
-    tb = Vector([
-        [1, 3, 8, 5],
-        [2, 4, 6, 2]
-    ])
-    tv = Vector([[100], [100]])
-    for t_vec in convex_integral_combinations(tb, tv):
-        assert tb * t_vec == tv
-        for t_c in t_vec:
-            assert t_c >= 0
-        pprint(t_vec)
+    # tb = Vector([
+    #     [1, 3, 8, 5],
+    #     [2, 4, 6, 2]
+    # ])
+    # tv = Vector([[100], [100]])
+    # for t_vec in convex_integral_combinations(tb, tv):
+    #     assert tb * t_vec == tv
+    #     for t_c in t_vec:
+    #         assert t_c >= 0
+    #     pprint(t_vec)
+
+    # from sympy import GF
+    # F = GF(7)
+    # Polynomial.set_base_field(F)
+    # p_1 = monomial([1, 2])
+    # p_2 = Polynomial({Exponent([1, 2]): F(6)})
+    # print(p_1, p_2)
+    # print(p_1 - p_2)
+
+    tv = Vector([1, 2, 3])
+    print(type(tv[:-1]))
+

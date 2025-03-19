@@ -1,7 +1,7 @@
 from utilities import Matrix
 from page import Page
-from element import Element
-from scalar import Scalar
+from element import HomoPoly
+
 
 
 class Differential:
@@ -12,7 +12,7 @@ class Differential:
         self.diff_matrix = [dx, dy, dz]
         assert len(self.diff_matrix) == self.page.gen_num  # Ensure diff_matrix is valid
 
-    def calculate(self, exponent_matrix: Matrix) -> Element:
+    def calculate(self, exponent_matrix: Matrix) -> HomoPoly:
         """
         Compute the differential of a monomial.
 
@@ -21,7 +21,7 @@ class Differential:
         """
         assert exponent_matrix.shape == (self.page.gen_num, 1)  # Ensure correct shape
 
-        differential_result = Element(self.page)
+        differential_result = HomoPoly(self.page)
 
         for i in range(self.page.gen_num):
             exponent = exponent_matrix[i, 0]  # Get the exponent for this generator
@@ -33,7 +33,7 @@ class Differential:
                 coefficient_scalar = self.page.get_scalar(exponent)  # take the exponent down when differentiating
 
                 differential_term = self.diff_matrix[i]  # get the image of differential at generator
-                term = differential_term * Element(
+                term = differential_term * HomoPoly(
                     self.page,
                     new_exponent,
                     coefficient_scalar
@@ -54,9 +54,9 @@ if __name__ == "__main__":
     _page = Page(generators, generator_bigrades, c, 1)
 
     # 生成 d(x), d(y), d(z) 作为 Element
-    _dx = Element(_page, Matrix([[2], [0], [0]]), Scalar(c, 1))
-    _dy = Element(_page, Matrix([[0], [2], [0]]), Scalar(c, 1))
-    _dz = Element(_page, Matrix([[0], [0], [2]]), Scalar(c, 1))  # d(z) 对应于 x^0 y^0 z^2
+    _dx = HomoPoly(_page, Matrix([[2], [0], [0]]), Scalar(c, 1))
+    _dy = HomoPoly(_page, Matrix([[0], [2], [0]]), Scalar(c, 1))
+    _dz = HomoPoly(_page, Matrix([[0], [0], [2]]), Scalar(c, 1))  # d(z) 对应于 x^0 y^0 z^2
 
     # 创建 Differential 实例
     differential = Differential(_page, _dx, _dy, _dz)
