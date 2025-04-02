@@ -19,10 +19,10 @@ ss.add_relation(ss([0, 0, 2]))
 p = Page(ss, 1)
 
 
-test_poly = ss([1, 3, 1]) * ss(2)
+test_poly = ss([1, 4, 1]) * ss(2)
 
 abs_bigrade, abs_coordinate = ss.get_absolute_info(test_poly)
-abs_basis = ss.get_actual_basis(abs_bigrade)
+abs_basis = ss.get_abs_basis(abs_bigrade)
 
 print("______ Basis", abs_basis)
 print("______ Absolute Info", abs_bigrade, abs_coordinate)

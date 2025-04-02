@@ -1,10 +1,7 @@
 from __future__ import annotations
-from typing import TYPE_CHECKING
 
-if TYPE_CHECKING:
-    from element import Bigrade
-    from page import Page
-
+from element import Bigrade
+from page import Page
 from utilities import Matrix, Vector, Prime, Polynomial, Exponent, convex_integral_combinations, monomial
 from sympy import GF
 
@@ -19,14 +16,14 @@ class SpectralSequence:
 
         assert Prime.is_prime(c)
         self.c = c
-        self.ff = GF(c)
+        self.ff = GF(c)  # Base Field
         Polynomial.initiate(self.ff, self.generators)
 
         self.pages: list[Page] = []
         self.relations: list[Polynomial] = []
 
         # A dictionary that maps bigrades to exponents
-        self.actual_bases: dict[Bigrade: tuple[Exponent, ...]] = {}
+        self.absolute_bases: dict[Bigrade: tuple[Exponent, ...]] = {}
 
     def add_relation(self, relation: Polynomial):
         self.relations.append(relation)
@@ -53,19 +50,19 @@ class SpectralSequence:
                     res.append(temp_coordinate)
         return Matrix.hstack(*res)
 
-    def get_actual_basis(self, bigrade) -> tuple[Exponent, ...]:
-        if bigrade in self.actual_bases.keys():
-            return self.actual_bases[bigrade]
+    def get_abs_basis(self, bigrade) -> tuple[Exponent, ...]:
+        if bigrade in self.absolute_bases.keys():
+            return self.absolute_bases[bigrade]
         else:
             res = tuple([Exponent(v) for v in convex_integral_combinations(self.generator_bigrades, bigrade)])
-            self.actual_bases[bigrade] = res
+            self.absolute_bases[bigrade] = res
             return res
 
     def get_abs_dimension(self, bigrade: Bigrade):
-        return len(self.get_actual_basis(bigrade))
+        return len(self.get_abs_basis(bigrade))
 
     def get_abs_bigrade(self, exponent) -> Bigrade:
-        return self.generator_bigrades * exponent
+        return Bigrade(self.generator_bigrades * exponent)
 
     def get_absolute_info(self, coef_map) -> tuple[Bigrade, Vector]:
         print("abs_info called on:", coef_map.__str__())
@@ -78,7 +75,7 @@ class SpectralSequence:
             else:
                 assert abs_bigrade == self.get_abs_bigrade(exponent)
 
-            basis = self.get_actual_basis(abs_bigrade)
+            basis = self.get_abs_basis(abs_bigrade)
             cur = []
             for n, i in enumerate(basis):
                 if i == exponent:

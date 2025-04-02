@@ -8,23 +8,6 @@ if TYPE_CHECKING:
 from utilities import Matrix, Vector
 from sortedcontainers import SortedDict
 
-# class Page(AbstractPage):
-#     def set_differential(self):
-#         """
-#         Set the information of the differential
-#         """
-#
-#         raise NotImplementedError
-#
-#     def get_scalar(self, val) -> Scalar:
-#         return Scalar(self.c, val)
-#
-#     def get_module(self, bigrade: Matrix):
-#         for module in self.calculated_modules.keys():
-#             if bigrade == module:
-#                 return module
-#             return Module(self, bigrade)
-
 
 class Page:
     def __init__(self, ss, page_num):

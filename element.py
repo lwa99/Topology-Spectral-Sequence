@@ -55,7 +55,7 @@ class HomoPoly:
 
             # build the coef_map from coordinate
             poly = Polynomial()
-            actual_basis = ss.get_actual_basis(abs_bigrade)
+            actual_basis = ss.get_abs_basis(abs_bigrade)
             for i, exponent in enumerate(actual_basis):
                 poly[exponent] = abs_coordinate[i]
 
