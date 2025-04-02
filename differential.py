@@ -3,7 +3,6 @@ from page import Page
 from element import HomoPoly
 
 
-
 class Differential:
     def __init__(self, page: Page, dx, dy, dz):
         # TODO: allow the differential to be defined via different basis.
@@ -43,6 +42,56 @@ class Differential:
 
         return differential_result
 
+    # def compute_differential_matrix(self, domain_bigrade: Matrix) -> np.ndarray:
+    #     """
+    #     对于给定的 domain bigrade，利用当前设置好的 differential，
+    #     计算 differential 在该向量空间上的矩阵表达。
+    #
+    #     流程：
+    #     1. 枚举出满足 self.generator_bigrades * exponent = domain_bigrade 的所有指数（即 domain basis）。
+    #     2. 对于每个基元（以 Element 表示，系数取 1），计算其 differential。
+    #     3. 根据第一个非零 differential 的 bigrade 确定 codomain basis。
+    #     4. 将 differential 结果展开成 codomain basis 的线性组合，构造出矩阵表示。
+    #     """
+    #     # 1. 枚举 domain basis
+    #     domain_exponents = enumerate_exponents(self, domain_bigrade)
+    #     if not domain_exponents:
+    #         print("未找到符合 domain bigrade 的基。")
+    #         return np.array([])
+    #     domain_basis = [Element(self, exp, self.get_scalar(1)) for exp in domain_exponents]
+    #
+    #     # 2. 对每个 domain basis 元素应用 differential
+    #     differential_images = [self.differential.calculate(exp) for exp in domain_exponents]
+    #
+    #     # 3. 确定 codomain bigrade（取第一个非零 differential image 的 bigrade）
+    #     target_bigrade = None
+    #     for img in differential_images:
+    #         if len(img.coefMap) > 0 and img.bigrade is not None and len(img.bigrade) > 0:
+    #             target_bigrade = img.bigrade
+    #             break
+    #     if target_bigrade is None:
+    #         print("所有 differential 结果均为零。")
+    #         return np.zeros((0, len(domain_exponents)), dtype=int)
+    #
+    #     # 4. 枚举 codomain basis
+    #     codomain_exponents = enumerate_exponents(self, target_bigrade)
+    #     if not codomain_exponents:
+    #         print("未找到符合 codomain bigrade 的基。")
+    #         return np.array([])
+    #
+    #     # 构造矩阵：行对应 codomain basis, 列对应 domain basis
+    #     M = np.zeros((len(codomain_exponents), len(domain_exponents)), dtype=int)
+    #     for j, img in enumerate(differential_images):
+    #         for key, scalar in img.coefMap.items():
+    #             found = False
+    #             for i, exp in enumerate(codomain_exponents):
+    #                 if key == exp:
+    #                     M[i, j] = scalar.val
+    #                     found = True
+    #                     break
+    #             if not found:
+    #                 print(f"警告：differential 中的项 {key} 不在 codomain basis 内。")
+    #     return M
 
 
 if __name__ == "__main__":
