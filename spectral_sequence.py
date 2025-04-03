@@ -34,13 +34,13 @@ class SpectralSequence:
         """
         res = []
         for relation in self.relations:
-            abs_bigrade, abs_coordinate = self.get_absolute_info(relation)
+            abs_bigrade, abs_coordinate = self.get_abs_info(relation)
             skewed_exps = convex_integral_combinations(self.generator_bigrades.row_join(abs_bigrade), bigrade)
             for s_exp in skewed_exps:
                 if s_exp[-1] == 0:
                     continue
 
-                temp_bigrade, temp_coordinate = self.get_absolute_info(
+                temp_bigrade, temp_coordinate = self.get_abs_info(
                     monomial(s_exp[:-1]) * relation ** s_exp[-1]
                 )
                 print("Formula:", f"{monomial(s_exp[:-1])} * {relation} ** {s_exp[-1]} = "
@@ -64,7 +64,7 @@ class SpectralSequence:
     def get_abs_bigrade(self, exponent) -> Bigrade:
         return Bigrade(self.generator_bigrades * exponent)
 
-    def get_absolute_info(self, coef_map) -> tuple[Bigrade, Vector]:
+    def get_abs_info(self, coef_map) -> tuple[Bigrade, Vector]:
         print("abs_info called on:", coef_map.__str__())
         abs_bigrade = None
         abs_coordinate = None
