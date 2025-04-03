@@ -88,13 +88,13 @@ class HomoElem:
         return self.bigrade is None
 
     def __add__(self, other):
-        raise NotImplementedError
+        return HomoElem(self.page, self.poly + other.poly)
 
     def __sub__(self, other):
-        raise NotImplementedError
+        return HomoElem(self.page, self.poly - other.poly)
 
     def __mul__(self, other):
-        raise NotImplementedError
+        return HomoElem(self.page, self.poly * other.poly)
 
 
     def __str__(self):
