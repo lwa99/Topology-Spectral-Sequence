@@ -2,7 +2,7 @@ from utilities import Matrix, Vector, Polynomial
 from sympy import pprint
 from spectral_sequence import SpectralSequence
 from page import Page
-from element import HomoPoly
+from element import HomoElem
 
 ss = SpectralSequence(
     ["x", "y", "z"],
@@ -28,5 +28,5 @@ print("______ Basis", abs_basis)
 print("______ Absolute Info", abs_bigrade, abs_coordinate)
 print("______ Kernel Basis", ss.get_ker_basis(abs_bigrade))
 
-homo_poly = HomoPoly(p, test_poly)
+homo_poly = HomoElem(p, test_poly)
 print(homo_poly.coordinate)

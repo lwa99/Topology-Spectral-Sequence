@@ -19,7 +19,7 @@ class InHomoPoly:
     pass
 
 
-class HomoPoly:
+class HomoElem:
     """
     Homogeneous polynomials are used to represent homogeneous elements in a page.
 

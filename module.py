@@ -3,7 +3,7 @@ from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from page import Page
-    from element import HomoPoly
+    from element import HomoElem
 
 from utilities import Matrix, Vector
 
@@ -39,7 +39,7 @@ class Module:
 
         self.basis_inv: Matrix = rref[:, (ker_basis.cols + basis.cols):]
 
-    def __contains__(self, e: HomoPoly):
+    def __contains__(self, e: HomoElem):
         if e.page != self.page:
             return False
         if e.isZero():
