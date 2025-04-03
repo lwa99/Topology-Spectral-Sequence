@@ -15,7 +15,7 @@ class Bigrade(Vector):
         return f"Bigrade {self.tolist()}"
 
 
-class InHomoPoly:
+class InHomoElem:
     pass
 
 
