@@ -19,7 +19,7 @@ class InHomoPoly:
     pass
 
 
-class HomoPoly:
+class HomoElem:
     """
     Homogeneous polynomials are used to represent homogeneous elements in a page.
 
@@ -69,7 +69,7 @@ class HomoPoly:
                 self.poly: Polynomial = Polynomial()
 
             # Get absolute bigrade and coordinate
-            abs_bigrade, abs_coordinate = ss.get_absolute_info(poly)
+            abs_bigrade, abs_coordinate = ss.get_abs_info(poly)
         # Step 2: Determine if it is in the kernel and set actual bigrade.
         subspace = page.get_subspace(abs_bigrade)
         r = subspace.classify(abs_coordinate)
