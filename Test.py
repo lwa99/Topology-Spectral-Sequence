@@ -21,7 +21,7 @@ p = Page(ss, 1)
 
 test_poly = ss([1, 4, 1]) * ss(2)
 
-abs_bigrade, abs_coordinate = ss.get_absolute_info(test_poly)
+abs_bigrade, abs_coordinate = ss.get_abs_info(test_poly)
 abs_basis = ss.get_abs_basis(abs_bigrade)
 
 print("______ Basis", abs_basis)
