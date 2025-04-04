@@ -5,6 +5,7 @@ from math import ceil, sqrt
 from copy import deepcopy
 from itertools import product
 
+
 class Prime:
     """
     A static class used to handle prime number computation efficiently.
