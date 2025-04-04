@@ -71,7 +71,7 @@ class HomoElem:
             # Get absolute bigrade and coordinate
             abs_bigrade, abs_coordinate = ss.get_abs_info(poly)
         # Step 2: Determine if it is in the kernel and set actual bigrade.
-        subspace = page.get_subspace(abs_bigrade)
+        subspace = page.get_module(abs_bigrade)
         r = subspace.classify(abs_coordinate)
         if r == 2:
             raise ValueError("Element does not exist")
