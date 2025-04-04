@@ -15,7 +15,7 @@ class Bigrade(Vector):
         return f"Bigrade {self.tolist()}"
 
 
-class InHomoPoly:
+class InHomoElem:
     pass
 
 
@@ -91,10 +91,11 @@ class HomoElem:
         return HomoElem(self.page, self.poly + other.poly)
 
     def __sub__(self, other):
-        raise NotImplementedError
+        return HomoElem(self.page, self.poly - other.poly)
 
     def __mul__(self, other):
-        raise NotImplementedError
+        return HomoElem(self.page, self.poly * other.poly)
+
 
     def __eq__(self, other):
         return (self - other).isZero
