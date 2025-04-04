@@ -39,6 +39,10 @@ class Module:
 
         self.basis_inv: Matrix = rref[:, (ker_basis.cols + basis.cols):]
 
+    @property
+    def basis(self):
+        return self.ker_basis.row_join(self.sp_basis)
+
     def __contains__(self, e: HomoElem):
         if e.page != self.page:
             return False

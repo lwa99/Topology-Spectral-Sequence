@@ -43,7 +43,7 @@ class HomoElem:
         """
         Two Modes:
 
-        1. Coefficient Map Mode.
+        1. Polynomial Mode.
         2. Absolute Coordinate Mode
         """
         self.page = page
@@ -71,7 +71,7 @@ class HomoElem:
             # Get absolute bigrade and coordinate
             abs_bigrade, abs_coordinate = ss.get_abs_info(poly)
         # Step 2: Determine if it is in the kernel and set actual bigrade.
-        subspace = page.get_subspace(abs_bigrade)
+        subspace = page.get_module(abs_bigrade)
         r = subspace.classify(abs_coordinate)
         if r == 2:
             raise ValueError("Element does not exist")
@@ -80,15 +80,15 @@ class HomoElem:
             self.coordinate = abs_coordinate
             self.poly = poly
         else:
-            self.bigrade = None
-            self.coordinate = None
+            self.bigrade: Bigrade | None = None
+            self.coordinate: Vector | None = None
             self.poly = Polynomial()
 
     def isZero(self):
         return self.bigrade is None
 
     def __add__(self, other):
-        raise NotImplementedError
+        return HomoElem(self.page, self.poly + other.poly)
 
     def __sub__(self, other):
         raise NotImplementedError
@@ -96,79 +96,13 @@ class HomoElem:
     def __mul__(self, other):
         raise NotImplementedError
 
-    # def __add__(self, other: 'HomoPoly'):
-    #     if len(self.coefMap) == 0:
-    #         return deepcopy(other)
-    #
-    #     # From now on we may assume that self is not the zero polynomial
-    #     output = deepcopy(self)
-    #     if len(other.coefMap) == 0:
-    #         return output
-    #     term_deleted = False
-    #
-    #     for key, scalar in other.coefMap.items():
-    #         # If the key is absent, the following line will add the key associated with an empty scalar wrapper.
-    #         # Then, the value is replaced by the actual value.
-    #         # IF the key is present, the following line will do nothing and return the current value, which will be
-    #         # modified accordingly.
-    #         # If it becomes 0, the key-value pair will be deleted.
-    #         cur_coef = output.coefMap.setdefault(key, self.page.get_scalar(None))
-    #         if cur_coef == self.page.get_scalar(None):
-    #             cur_coef.update(scalar.val)
-    #         else:
-    #             cur_coef.increase_by(scalar)
-    #
-    #             # Now take care of 0 coefficient
-    #             if cur_coef.val == 0:
-    #                 del output.coefMap[key]
-    #                 term_deleted = True
-    #
-    #     # Now we update bigrades
-    #     if output.bigrade is not None:
-    #         # If the original bigrade exists but is not equal to that of the other, the bigrade become undefined
-    #         if output.bigrade != other.bigrade:
-    #             output.bigrade = None
-    #     elif term_deleted:
-    #         # If the original bigrade did not exist and adding a new polynomial results in deletion of some terms,
-    #         # the resulting polynomial may become homogeneous again
-    #         output._update_bigrade()
-    #
-    #     return output
-    #
-    # def __mul__(self, other):
-    #     if len(self.coefMap) == 0:
-    #         return deepcopy(self)
-    #     if len(other.coefMap) == 0:
-    #         return other
-    #
-    #     # From now on we may assume that both operands are non-zero
-    #     output = HomoPoly(self.page)
-    #     if self.bigrade is None or other.bigrade is None:
-    #         output.bigrade = None
-    #     else:
-    #         output.bigrade = self.bigrade + other.bigrade
-    #
-    #     for deg_1, coef_1 in self.coefMap.items():
-    #         for deg_2, coef_2 in other.coefMap.items():
-    #             output.coefMap[deg_1 + deg_2] = coef_1 * coef_2
-    #
-    #     return output
-    #
-    # def _update_bigrade(self):
-    #     if len(self.coefMap) == 0:
-    #         self.bigrade = Matrix([])
-    #         return
-    #     _iter = self.coefMap.keys().__iter__()  # get the key iterator
-    #     res = self.page.generator_bigrades * _iter.__next__()  # get the first key and calculate bigrade
-    #     try:
-    #         while True:
-    #             if self.page.generator_bigrades * _iter.__next__() != res:
-    #                 self.bigrade = None  # Self is non-homogeneous
-    #                 return
-    #     except StopIteration:
-    #         assert isinstance(res, Matrix)
-    #         self.bigrade = res
-    #         return
+    def __eq__(self, other):
+        return (self - other).isZero
+
+    def divides(self, other):
+        """
+        return: whether self divides other, considering the relations.
+        """
 
     def __str__(self):
         output = ""
@@ -179,7 +113,7 @@ class HomoElem:
             for i, degree in enumerate(key):
                 output += f"({self.page.ss.generators[i]}^{degree})"
             output += " + "
-        output = output[:-2] + f" (mod {self.page.ss.c})"
+        output = output[:-2]
         return output
 
 

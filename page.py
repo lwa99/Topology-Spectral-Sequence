@@ -15,7 +15,7 @@ class Page:
         self.page_num = page_num
         self.subspaces = SortedDict([])
 
-    def get_subspace(self, bigrade):
+    def get_module(self, bigrade):
         if bigrade in self.subspaces:
             return self.subspaces[bigrade]
         else:

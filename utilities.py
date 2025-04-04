@@ -70,18 +70,22 @@ class Matrix(_Matrix):
         return int(res)
 
     @staticmethod
-    def double_reduction(m1: "Matrix", m2: "Matrix" = None):
-        if m2 is None:
-            m2 = Matrix([[]]*m1.rows)
-        output1 = []
-        output2 = []
-        combined = m1.copy().row_join(m2)
-        for i in combined.rref()[1]:
-            if i < m1.cols:
-                output1.append(i)
-            else:
-                output2.append(i - m1.cols)
-        return output1, output2
+    def multi_reduction(*args: Matrix):
+        rref, pivots = Matrix.hstack(*args, Matrix.eye(args[0].rows)).rref()
+        acc_col = [0]
+        res = []
+
+        i = 0
+        for j in pivots:
+            if j >= acc_col[-1]:
+                if i >= len(args):
+                    break
+                acc_col.append(acc_col[-1] + args[i].cols)
+                i += 1
+            res[i].append(j - acc_col[-2])
+
+        total_cols = sum([m.cols for m in args])
+        return tuple(res + [rref[:, total_cols:]])
 
     def col_spans(self, vec: 'Vector') -> bool:
         if self.rows != vec.rows:
