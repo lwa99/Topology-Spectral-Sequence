@@ -43,7 +43,7 @@ class HomoElem:
         """
         Two Modes:
 
-        1. Coefficient Map Mode.
+        1. Polynomial Mode.
         2. Absolute Coordinate Mode
         """
         self.page = page
@@ -80,8 +80,8 @@ class HomoElem:
             self.coordinate = abs_coordinate
             self.poly = poly
         else:
-            self.bigrade = None
-            self.coordinate = None
+            self.bigrade: Bigrade | None = None
+            self.coordinate: Vector | None = None
             self.poly = Polynomial()
 
     def isZero(self):
@@ -97,6 +97,14 @@ class HomoElem:
         return HomoElem(self.page, self.poly * other.poly)
 
 
+    def __eq__(self, other):
+        return (self - other).isZero
+
+    def divides(self, other):
+        """
+        return: whether self divides other, considering the relations.
+        """
+
     def __str__(self):
         output = ""
         if len(self.poly) == 0:
@@ -106,7 +114,7 @@ class HomoElem:
             for i, degree in enumerate(key):
                 output += f"({self.page.ss.generators[i]}^{degree})"
             output += " + "
-        output = output[:-2] + f" (mod {self.page.ss.c})"
+        output = output[:-2]
         return output
 
 

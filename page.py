@@ -5,19 +5,19 @@ if TYPE_CHECKING:
     from module import Module
     from spectral_sequence import SpectralSequence
 
-from utilities import Matrix, Vector
+from utilities import Matrix, Polynomial, degree_generator
 from sortedcontainers import SortedDict
+from differential import Differential
+from element import HomoElem
+from sympy import div
 
 
 class Page:
-    def __init__(self, ss, page_num):
+    def __init__(self, ss, page_num, d: Differential):
         self.ss: SpectralSequence = ss
         self.page_num = page_num
         self.subspaces = SortedDict([])
-        self.differential = None
-
-    def set_differential(self, d):
-        self.differential = d
+        self.d: Differential = d
 
     def get_module(self, bigrade):
         if bigrade in self.subspaces:
@@ -27,7 +27,7 @@ class Page:
             self.subspaces[bigrade] = output
             return output
 
-    def generate_module(self, bigrade, differential) -> Module:
+    def generate_module(self, bigrade) -> Module:
         from module import Module
 
         # This is the function that handles generates subspaces of new pages.
@@ -50,11 +50,11 @@ class Page:
         - image_A1: A1 的像（column space）。
         """
         # 计算 prev 的 bigrade
-        prev_bigrade = bigrade - differential.bigrade  # 直接用向量减法
+        prev_bigrade = bigrade - self.d.d_bigrade  # 直接用向量减法
 
         # 获取 A1 和 A2
-        matrix_prev = get_matrix(prev_bigrade)  # A1: M0 -> M1 的映射矩阵
-        matrix_next = get_matrix(bigrade)  # A2: M1 -> M_next 的映射矩阵
+        matrix_prev = self.d.get_matrix(prev_bigrade)  # A1: M0 -> M1 的映射矩阵
+        matrix_next = self.d.get_matrix(bigrade)  # A2: M1 -> M_next 的映射矩阵
 
         # 计算 A2 的核（解 Ax=0）
         kernel_next = matrix_next.nullspace()
@@ -65,7 +65,10 @@ class Page:
         return Module(self, bigrade, image_prev, kernel_next)
 
 
-    def find_kernels_for_division(a: Poly, c: Poly, ker_basis_matrix, page, bigrade, prime_char: int = 3):
+    def find_kernels_for_division(self,
+                                  a: Polynomial,
+                                  c: Polynomial,
+                                  bigrade):
         # 大体method没有问题，需要确认有效性，和mod prime_char
         """
         找到所有 (k1, k2)，使得 (c + k1) / (a + k2) 整除成立。
@@ -81,9 +84,12 @@ class Page:
         - solutions: 满足整除条件的三元组 (k1, k2, b)
         """
         kernels = []
-        for degree_vector in degree_generator(ker_basis_matrix, prime_char):
+        module = self.get_module(bigrade)
+        ker_basis = module.ker_basis
+        char = self.ss.c
+        for degree_vector in degree_generator(ker_basis, char):
             try:
-                elem = HomoElem(page, poly=None, abs_bigrade=bigrade, abs_coordinate=degree_vector)
+                elem = HomoElem(self, poly=None, abs_bigrade=bigrade, abs_coordinate=degree_vector)
                 if not elem.isZero():
                     kernels.append(elem.poly)
             except ValueError:
@@ -94,12 +100,11 @@ class Page:
             for k2 in kernels:
                 numerator = c + k1
                 denominator = a + k2
-                q, r = div(numerator, denominator, domain=GF(prime_char))
+                q, r = div(numerator, denominator, domain=self.ss.ff)
                 if r == 0:
                     solutions.append((k1, k2, q))
 
         return solutions
-
 
     # def test_zero_homo_poly(self, coef_map: SortedDict):
     #     assert len(Vector) == len(self.ss.generators)

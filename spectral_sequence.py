@@ -96,7 +96,7 @@ class SpectralSequence:
         if isinstance(val, int):
             return self.ff(val)
         elif isinstance(val, dict):
-            return Polynomial(dict)
+            return Polynomial(val)
         else:
             return monomial(val)
 
