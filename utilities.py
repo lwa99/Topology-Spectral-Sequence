@@ -359,26 +359,10 @@ def convex_integral_combinations(b: Matrix, v: Vector) -> list[Vector]:
         return res
     
 def condition_fn(coeffs, degree):
+    # 后面需要什么条件自己再替换
     return True
 
 def degree_generator(basis_matrix, c):
-
-    n = len(basis_matrix)
-    k = len(basis_matrix[0]) if n > 0 else 0
-
-    for coeffs in product(range(c), repeat=n):
-        degree = [0] * k
-        for i in range(n):
-            for j in range(k):
-                degree[j] += coeffs[i] * basis_matrix[i][j]
-
-        # 🔥 直接调用外部定义的 condition_fn（不作为参数传进来）
-        if not condition_fn(coeffs, degree):
-            continue
-
-        yield (coeffs, degree)
-
-def degree_generator2(basis_matrix, c):
     basis_matrix = list(zip(*basis_matrix))
 
     n = len(basis_matrix)
@@ -405,7 +389,7 @@ if __name__ == "__main__":
     ]
     c = 2
 
-    gen = degree_generator2(basis, c)
+    gen = degree_generator(basis, c)
 
     print(next(gen))
     print(next(gen))
