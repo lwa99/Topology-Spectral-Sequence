@@ -3,7 +3,7 @@ from sympy import Matrix as _Matrix
 from sortedcontainers import SortedList, SortedDict
 from math import ceil, sqrt
 from copy import deepcopy
-
+from itertools import product
 
 class Prime:
     """
@@ -70,18 +70,22 @@ class Matrix(_Matrix):
         return int(res)
 
     @staticmethod
-    def double_reduction(m1: "Matrix", m2: "Matrix" = None):
-        if m2 is None:
-            m2 = Matrix([[]]*m1.rows)
-        output1 = []
-        output2 = []
-        combined = m1.copy().row_join(m2)
-        for i in combined.rref()[1]:
-            if i < m1.cols:
-                output1.append(i)
-            else:
-                output2.append(i - m1.cols)
-        return output1, output2
+    def multi_reduction(*args: Matrix):
+        rref, pivots = Matrix.hstack(*args, Matrix.eye(args[0].rows)).rref()
+        acc_col = [0]
+        res = []
+
+        i = 0
+        for j in pivots:
+            if j >= acc_col[-1]:
+                if i >= len(args):
+                    break
+                acc_col.append(acc_col[-1] + args[i].cols)
+                i += 1
+            res[i].append(j - acc_col[-2])
+
+        total_cols = sum([m.cols for m in args])
+        return tuple(res + [rref[:, total_cols:]])
 
     def col_spans(self, vec: 'Vector') -> bool:
         if self.rows != vec.rows:
@@ -357,9 +361,49 @@ def convex_integral_combinations(b: Matrix, v: Vector) -> list[Vector]:
             free_part_config = _next_config(free_part_config, bounds)
     except StopIteration:
         return res
+    
+def condition_fn(coeffs, degree):
+    # 后面需要什么条件自己再替换
+    return True
+
+def degree_generator(basis_matrix, c):
+    basis_matrix = list(zip(*basis_matrix))
+
+    n = len(basis_matrix)
+    k = len(basis_matrix[0]) if n > 0 else 0
+
+    for coeffs in product(range(c), repeat=n):
+        degree = [0] * k
+        for i in range(n):
+            for j in range(k):
+                degree[j] += coeffs[i] * basis_matrix[i][j]
+
+        if not condition_fn(coeffs, degree):
+            continue
+
+        yield Vector(degree)
 
 
 if __name__ == "__main__":
+
+    basis = [
+        [1, 2],
+        [-1, 3],
+        [0, 0]
+    ]
+    c = 2
+
+    gen = degree_generator(basis, c)
+
+    print(next(gen))
+    print(next(gen))
+    print(next(gen))
+    print(next(gen))
+
+ 
+
+
+
     # tb = Vector([
     #     [1, 3, 8, 5],
     #     [2, 4, 6, 2]

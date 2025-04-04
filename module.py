@@ -24,20 +24,24 @@ class Module:
         rref, pivots = combined.rref()
 
         ker_basis_idx = []
-        basis_idx = []
+        sp_basis_idx = []
         for i in pivots:
             if i < ker_basis.cols:
                 ker_basis_idx.append(i)
             elif i < ker_basis.cols + basis.cols:
-                basis_idx.append(i - ker_basis.cols)
+                sp_basis_idx.append(i - ker_basis.cols)
 
-        self.sp_basis: Matrix = basis[:, basis_idx]
+        self.sp_basis: Matrix = basis[:, sp_basis_idx]
         self.ker_basis: Matrix = ker_basis[:, ker_basis_idx]
 
         if self.sp_basis.cols + self.ker_basis.cols > basis.cols:
             raise ValueError("The kernel is not in the span")
 
         self.basis_inv: Matrix = rref[:, (ker_basis.cols + basis.cols):]
+
+    @property
+    def basis(self):
+        return self.ker_basis.row_join(self.sp_basis)
 
     def __contains__(self, e: HomoElem):
         if e.page != self.page:
