@@ -2,7 +2,6 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from module import Module
     from spectral_sequence import SpectralSequence
 
 from utilities import Matrix, Polynomial, degree_generator
@@ -10,6 +9,7 @@ from sortedcontainers import SortedDict
 from differential import Differential
 from element import HomoElem
 from sympy import div
+from module import Module
 
 
 class Page:
@@ -28,8 +28,6 @@ class Page:
             return output
 
     def generate_module(self, bigrade) -> Module:
-        from module import Module
-
         # This is the function that handles generates subspaces of new pages.
         if self.page_num == 1:
             return Module(self, bigrade,
@@ -63,7 +61,6 @@ class Page:
         image_prev = matrix_prev.columnspace()
 
         return Module(self, bigrade, image_prev, kernel_next)
-
 
     def find_kernels_for_division(self,
                                   a: Polynomial,
