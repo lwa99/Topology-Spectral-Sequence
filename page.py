@@ -7,17 +7,19 @@ if TYPE_CHECKING:
 from utilities import Matrix, Polynomial, degree_generator
 from sortedcontainers import SortedDict
 from differential import Differential
-from element import HomoElem
+from element import HomoElem, Bigrade
 from sympy import div
 from module import Module
 
 
 class Page:
-    def __init__(self, ss, page_num, d: Differential):
+    def __init__(self, ss, page_num, io_pairs: dict, d_bigrade):
         self.ss: SpectralSequence = ss
         self.page_num = page_num
         self.subspaces = SortedDict([])
-        self.d: Differential = d
+        self.d = Differential(self, io_pairs, Bigrade(d_bigrade))
+
+        self.ss.pages.append(self)
 
     def get_module(self, bigrade):
         if bigrade in self.subspaces:
@@ -47,12 +49,13 @@ class Page:
         - kernel_A2: A2 的核（null space）。
         - image_A1: A1 的像（column space）。
         """
+        prev_page = self.ss.pages[self.page_num - 1]
         # 计算 prev 的 bigrade
-        prev_bigrade = bigrade - self.d.d_bigrade  # 直接用向量减法
+        prev_bigrade = bigrade - prev_page.d.d_bigrade  # 直接用向量减法
 
         # 获取 A1 和 A2
-        matrix_prev = self.d.get_matrix(prev_bigrade)  # A1: M0 -> M1 的映射矩阵
-        matrix_next = self.d.get_matrix(bigrade)  # A2: M1 -> M_next 的映射矩阵
+        matrix_prev = prev_page.d.get_matrix(prev_bigrade)  # A1: M0 -> M1 的映射矩阵
+        matrix_next = prev_page.d.get_matrix(bigrade)  # A2: M1 -> M_next 的映射矩阵
 
         # 计算 A2 的核（解 Ax=0）
         kernel_next = matrix_next.nullspace()
@@ -60,7 +63,7 @@ class Page:
         # 计算 A1 的像（列空间）
         image_prev = matrix_prev.columnspace()
 
-        return Module(self, bigrade, image_prev, kernel_next)
+        return Module(self, bigrade, Matrix.hstack(*kernel_next), Matrix.hstack(*image_prev))
 
     def find_kernels_for_division(self,
                                   a: Polynomial,

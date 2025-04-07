@@ -3,16 +3,18 @@ from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from page import Page
-    from element import HomoElem, Bigrade
 
-from utilities import Matrix, SortedDict, monomial
+from utilities import Matrix, SortedDict, monomial, Polynomial, Vector
+from element import HomoElem, Bigrade
 
 
 class Differential:
-    def __init__(self, page: Page, io_pairs: SortedDict, d_bigrade: Bigrade):
+    def __init__(self, page: Page, io_pairs: dict[Polynomial, Polynomial], d_bigrade: Bigrade):
         self.page = page
         self.d_bigrade = d_bigrade
-        self.knowledge: SortedDict = io_pairs
+        self.knowledge: dict[HomoElem, HomoElem] = {}
+        for key, value in io_pairs.items():
+            self.knowledge[HomoElem(page, key)] = HomoElem(page, value)
         self.calculated_matrices = SortedDict()
 
     def get_matrix(self, bigrade: Bigrade):
@@ -22,38 +24,57 @@ class Differential:
         # Get all known elements with correct bigrade
         pre_basis = Matrix()
         for e in self.knowledge.keys():
-            assert isinstance(e, HomoElem)
             if e.bigrade == bigrade:
-                pre_basis.row_join(e.coordinate)
+                pre_basis = pre_basis.row_join(e.coordinate)
 
         # Expand pre_basis to a basis of the starting module
         module = self.page.get_module(bigrade)
         pivots_1, pivots_2, pivots_3, inv = Matrix.multi_reduction(pre_basis, module.ker_basis, module.sp_basis)
-        res = Matrix()
+        print("Pivots:", pivots_1, pivots_2, pivots_3)
+        target_bigrade = bigrade + self.d_bigrade
+        target_dim = self.page.ss.get_abs_dimension(target_bigrade)
+        if target_dim > 0:
+            res = Matrix([[]]*target_dim)
 
-        for i in pivots_1:
-            elem = HomoElem(self.page, abs_bigrade=bigrade, abs_coordinate=pre_basis.col(i))
-            assert elem.bigrade == bigrade + self.d_bigrade
-            res.row_join(self.knowledge[elem].coordinate)
+            for i in pivots_1:
+                elem = HomoElem(self.page, abs_bigrade=bigrade, abs_coordinate=pre_basis.col(i))
+                target = self.knowledge[elem]
+                if target.isZero():
+                    a = Matrix([0]*target_dim)
+                    res = res.row_join(a)
+                else:
+                    res = res.row_join(target.coordinate)
 
-        for _ in pivots_2:
-            res.row_join(Matrix.zeros(res.rows, 1))
+            for _ in pivots_2:
+                res = res.row_join(Matrix.zeros(res.rows, 1))
 
-        for i in pivots_3:
-            unknown_elem = HomoElem(self.page, abs_bigrade=bigrade, abs_coordinate=module.sp_basis.col(i))
-            input_str = input(f"Please input d_{self.page.page_num}(  {unknown_elem}  )")
+            for i in pivots_3:
+                print(module.sp_basis.col(i))
+                print(bigrade)
+                print(self.page.ss.get_abs_basis(bigrade))
+                unknown_elem = HomoElem(self.page, abs_bigrade=bigrade, abs_coordinate=module.sp_basis.col(i))
+                input_str = input(f"Please input d_{self.page.page_num}(  {unknown_elem}  )")
 
-            for j, g in enumerate(self.page.ss.generators):
-                exponent = [0] * len(self.page.ss.generators)
-                exponent[j] = 1
-                temp = monomial(exponent)
-                exec(f"{g} = temp")
-            temp_poly = None
-            exec("temp_poly = "+input_str)
+                for j, g in enumerate(self.page.ss.generators):
+                    exponent = [0] * len(self.page.ss.generators)
+                    exponent[j] = 1
+                    exec(f"{g} = monomial(exponent)")
+                s = monomial([0] * len(self.page.ss.generators))
+                temp_poly = eval(input_str)
+                print(temp_poly)
 
-            res.row_join(HomoElem(self.page, poly=temp_poly).coordinate)
+                target = HomoElem(self.page, poly=temp_poly)
+                if target.isZero():
+                    a = Matrix([0]*target_dim)
+                    res = res.row_join(a)
+                else:
+                    res = res.row_join(target.coordinate)
 
-        return res * inv * module.basis
+            output = res * inv * module.basis
+        else:
+            output = Matrix([[0]*self.page.ss.get_abs_dimension(bigrade)])
+        self.calculated_matrices[bigrade] = output
+        return output
 
     def __call__(self, e: HomoElem):
         pass

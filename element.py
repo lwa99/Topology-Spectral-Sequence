@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from page import Page
 
-from utilities import Vector, Polynomial
+from utilities import Vector, Polynomial, Matrix
 
 
 class Bigrade(Vector):
@@ -67,6 +67,7 @@ class HomoElem:
                 self.bigrade: Bigrade | None = None
                 self.coordinate: Vector | None = None
                 self.poly: Polynomial = Polynomial()
+                return
 
             # Get absolute bigrade and coordinate
             abs_bigrade, abs_coordinate = ss.get_abs_info(poly)
@@ -74,7 +75,10 @@ class HomoElem:
         subspace = page.get_module(abs_bigrade)
         r = subspace.classify(abs_coordinate)
         if r == 2:
-            raise ValueError("Element does not exist")
+            if abs_bigrade == Vector([3, 0]):
+                print(subspace.dim)
+            raise ValueError(f"Element {poly.__repr__()} "
+                             f"(Bigrade: {abs_bigrade}) does not exist in page {self.page.page_num}.")
         elif r == 1:
             self.bigrade = abs_bigrade
             self.coordinate = abs_coordinate
@@ -96,9 +100,13 @@ class HomoElem:
     def __mul__(self, other):
         return HomoElem(self.page, self.poly * other.poly)
 
-
     def __eq__(self, other):
         return (self - other).isZero
+
+    def __hash__(self):
+        if self.isZero():
+            return 0
+        return Matrix(self.coordinate.col_join(self.bigrade)).__hash__()
 
     def divides(self, other):
         """
@@ -110,7 +118,7 @@ class HomoElem:
         if len(self.poly) == 0:
             return "zero polynomial (element)"
         for key, value in self.poly.items():
-            output += str(value.val)
+            output += str(value)
             for i, degree in enumerate(key):
                 output += f"({self.page.ss.generators[i]}^{degree})"
             output += " + "

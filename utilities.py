@@ -72,20 +72,34 @@ class Matrix(_Matrix):
 
     @staticmethod
     def multi_reduction(*args: Matrix):
-        rref, pivots = Matrix.hstack(*args, Matrix.eye(args[0].rows)).rref()
+        non_empty_args = []
+        for m in args:
+            if m.rows != 0:
+                non_empty_args.append(m)
+        if len(non_empty_args) == 0:
+            res: list[list | Matrix] = [[]]*len(args)
+            return tuple(res + [Matrix()])
+
+        rref, pivots = Matrix.hstack(*non_empty_args, Matrix.eye(non_empty_args[0].rows)).rref()
         acc_col = [0]
         res = []
 
         i = 0
+        flag = False
         for j in pivots:
-            if j >= acc_col[-1]:
+            while j >= acc_col[-1]:
                 if i >= len(args):
+                    flag = True
                     break
                 acc_col.append(acc_col[-1] + args[i].cols)
                 i += 1
-            res[i].append(j - acc_col[-2])
+                res.append([])
+            if flag:
+                break
+            res[-1].append(j - acc_col[-2])
+        res.extend([[]] * (len(args) - i))
 
-        total_cols = sum([m.cols for m in args])
+        total_cols = sum([m.cols for m in non_empty_args])
         return tuple(res + [rref[:, total_cols:]])
 
     def col_spans(self, vec: 'Vector') -> bool:
@@ -192,6 +206,13 @@ class Polynomial(SortedDict):
         else:
             return temp * temp * self
 
+    def __hash__(self):
+        output = 0
+        for expo in self.keys():
+            output += hash(expo)
+        output -= hash(Vector(self.values()))
+        return int(output)
+
     def __repr__(self):
         output = ""
         if len(self) == 0:
@@ -250,7 +271,8 @@ def convex_integral_combinations(b: Matrix, v: Vector) -> list[Vector]:
 
     Let $b$ be a length n (>0) collection of 2-dimensional vectors and let $v$ be a specific 2-dimensional vector.
     Find all combinations of vectors in $b$ with non-negative integer coefficients that can sum up to $v$.
-    We assume that the first components of vectors in $b$ and both components of $v$ are non-negative.
+    We assume that the second component $v$ and those of vectors in $b$ are non-negative. Also, for vectors in b,
+    we assume that when the second component is zero, their first component must be 0.
 
     Solution:
     Step 1: If $b$ contains only 1 vector $u$, test if $v$ is a multiple of $u$.
@@ -259,28 +281,42 @@ def convex_integral_combinations(b: Matrix, v: Vector) -> list[Vector]:
     Step 3: If there are at least 2 pivots.
         Step 3.1 If there are exactly 2 vectors: solve the linear system and check if the coefficients work out.
         Step 3.2 Calculate the bounds of coefficients corresponding to the free columns.
-        (The bounds exists because the first components are positive).
+        (The bounds exists because the second components are non-negative).
         Step 3.3 Traverse through all linear combinations of the free columns within the bounds and check each case if
             the coefficients work out.
     """
     n = b.cols
     assert n > 0
-    assert v[0] >= 0 and v[1] >= 0
+    assert v[1] >= 0
     for i in range(n):
-        assert b[0, i] >= 0
+        assert b[1, i] >= 0
 
     # Step 1: Only one column.
     if n == 1:
-        factor = v[0] // b[0, 0]
-        if b.col(0) * factor == v:
-            return [Vector([factor])]
+        if b[1, 0] > 0:
+            factor = v[1] // b[1, 0]
+            if b.col(0) * factor == v:
+                return [Vector([factor])]
+            return []
+        else:  # b[1, 0] = 0
+            factor = v[0] // b[0, 0]
+            if b.col(0) * factor == v and factor >= 0:
+                return [Vector([factor])]
+            return []
 
     res: list[Vector, ...] = []
     pivots = b.rref()[1]
 
     # Step 2: All columns dependent.
     if pivots == (0, ):
-        bounds = [v[0] // b[0, i] for i in range(n)]
+        if b[1, 0] == 0:  # Then all columns have the form (x, 0), x > 0
+            if v[1] != 0 or v[0] < 0:
+                return []
+            elif v[0] == 0:
+                return [Vector([0]*n)]
+            bounds = [v[0] // b[0, i] for i in range(n)]
+        else:
+            bounds = [v[1] // b[1, i] for i in range(n)]
         free_part_config = [0] * n
 
         try:
@@ -319,29 +355,29 @@ def convex_integral_combinations(b: Matrix, v: Vector) -> list[Vector]:
     bounds = [-1] * n
     skipped_index = []
     for j in range(n):
-        if b[0, j] > 0:
-            bounds[j] = v[0] // b[0, j]
-            if b[1, j] > 0 and v[1] // b[1, j] < bounds[j]:
-                bounds[j] = v[1] // b[1, j]
+        if b[1, j] > 0:
+            bounds[j] = v[1] // b[1, j]
+            if b[0, j] > 0 and v[0] // b[0, j] < bounds[j]:
+                bounds[j] = v[0] // b[0, j]
             continue
         skipped_index.append(j)
 
-    # Now, we are left with those columns with 0 in the first row
+    # Now, we are left with those columns with 0 in the second component
     if len(skipped_index) > 0:
-        cap = v[1]
+        cap = v[0]
         for j in range(n):
             if j in skipped_index:
                 continue
-            # collect second grades that have different sign from the first skipped second grade
-            if b[1, j] * b[1, skipped_index[0]] < 0:
-                cap -= b[1, j] * bounds[j]
+            # collect negative first components of columns that were not skipped
+            if b[0, j] < 0:
+                cap -= b[0, j] * bounds[j]
 
         for j in skipped_index:
-            if b[1, j] * b[1, skipped_index[0]] <= 0:
-                raise ValueError  # if different signs present, there are infinitely many possibilities
-            bounds[j] = cap // b[1, j]
+            if b[0, j] <= 0:
+                raise ValueError  # The first component must be positive when the second is 0
+            bounds[j] = cap // b[0, j]
             if bounds[j] < 0:
-                return []  # the cap and the second grade have different sign. There is no valid output
+                return []  # the cap and the first grade have different sign. There is no valid output
 
     # Step 3.3 Traverse all possible combinations.
     del bounds[p1]
@@ -387,23 +423,12 @@ def degree_generator(basis_matrix, c):
 
 if __name__ == "__main__":
 
-    basis = [
-        [1, 2],
-        [-1, 3],
-        [0, 0]
-    ]
-    c = 2
-
-    gen = degree_generator(basis, c)
-
-    print(next(gen))
-    print(next(gen))
-    print(next(gen))
-    print(next(gen))
-
- 
-
-
+    _b = Matrix([
+        [7, 3, 0],
+        [1, 0, 2]
+    ])
+    _v = Vector([3, 0])
+    print(convex_integral_combinations(_b, _v))
 
     # tb = Vector([
     #     [1, 3, 8, 5],
@@ -423,7 +448,4 @@ if __name__ == "__main__":
     # p_2 = Polynomial({Exponent([1, 2]): F(6)})
     # print(p_1, p_2)
     # print(p_1 - p_2)
-
-    tv = Vector([1, 2, 3])
-    print(type(tv[:-1]))
 

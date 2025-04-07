@@ -19,7 +19,7 @@ class SpectralSequence:
         self.ff = GF(c)  # Base Field
         Polynomial.initiate(self.ff, self.generators)
 
-        self.pages: list[Page] = []
+        self.pages: list[Page | None] = [None]  # We used None to occupy the 0 index so that page num agrees with index
         self.relations: list[Polynomial] = []
 
         # A dictionary that maps bigrades to exponents
@@ -59,13 +59,14 @@ class SpectralSequence:
             return res
 
     def get_abs_dimension(self, bigrade: Bigrade):
+        if bigrade[1] < 0 or (bigrade[1] == 0 and bigrade[0] <= 0):
+            return 0
         return len(self.get_abs_basis(bigrade))
 
     def get_abs_bigrade(self, exponent) -> Bigrade:
         return Bigrade(self.generator_bigrades * exponent)
 
     def get_abs_info(self, coef_map) -> tuple[Bigrade, Vector]:
-        print("abs_info called on:", coef_map.__str__())
         abs_bigrade = None
         abs_coordinate = None
         assert len(coef_map) > 0
@@ -89,7 +90,6 @@ class SpectralSequence:
             else:
                 abs_coordinate += Vector(cur) * coef
 
-        print("abs_info returns:", abs_bigrade, abs_coordinate)
         return abs_bigrade, abs_coordinate
 
     def __call__(self, val):

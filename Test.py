@@ -1,8 +1,8 @@
-from utilities import Matrix, Vector, Polynomial
+from utilities import Matrix, Vector, Polynomial, monomial
 from sympy import pprint
 from spectral_sequence import SpectralSequence
 from page import Page
-from element import HomoElem
+from element import HomoElem, Bigrade
 
 ss = SpectralSequence(
     ["x", "y", "z"],
@@ -16,17 +16,41 @@ ss.add_relation(ss([2, 0, 0]))
 ss.add_relation(ss([0, 4, 0]))
 ss.add_relation(ss([0, 0, 2]))
 
-p = Page(ss, 1)
+Z = monomial([0, 0, 0])
 
+print(ss.get_abs_basis(Bigrade([7, 3])))
+p_1 = Page(
+    ss, 1,
+    {
+        ss([1, 0, 0]): 0*Z,
+        ss([0, 1, 0]): 0*Z,
+        ss([0, 0, 1]): 0*Z
+    },
+    (1, -1)
+)
 
-test_poly = ss([1, 4, 1]) * ss(2)
+p_2 = Page(
+    ss, 2,
+    {
+        ss([1, 0, 0]): ss([0, 1, 0])**3
+    },
+    (2, -1)
+)
 
-abs_bigrade, abs_coordinate = ss.get_abs_info(test_poly)
-abs_basis = ss.get_abs_basis(abs_bigrade)
+p_3 = Page(
+    ss, 3,
+    {
+        ss([0, 0, 1]): ss([0, 1, 0])
+    },
+    (3, -2)
+)
 
-print("______ Basis", abs_basis)
-print("______ Absolute Info", abs_bigrade, abs_coordinate)
-print("______ Kernel Basis", ss.get_ker_basis(abs_bigrade))
+m = p_3.get_module(Bigrade([9, 2]))
 
-homo_poly = HomoElem(p, test_poly)
-print(homo_poly.coordinate)
+print(m.dim)
+print(m.ker_basis)
+print(ss.get_abs_basis(Bigrade([9, 2])))
+for j in range(m.sp_basis.cols):
+    print(m.sp_basis.col(j))
+    print(HomoElem(m.page, abs_coordinate=m.sp_basis.col(j), abs_bigrade=m.bigrade))
+
