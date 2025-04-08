@@ -1,16 +1,15 @@
-from utilities import Matrix, Vector, Polynomial, monomial
-from sympy import pprint
+from sympy.abc import symbols
+from sympy import GF, QQ
 from spectral_sequence import SpectralSequence
 from page import Page
 from element import HomoElem, Bigrade
 
+x, y, z = symbols(["x", "y", "z"])
 ss = SpectralSequence(
-    ["x", "y", "z"],
-    Matrix([
-        [7, 3, 0],
-        [1, 0, 2]
-    ]),
-    97
+    [x, y, z],
+    [[7, 3, 0],
+     [1, 0, 2]],
+    QQ
 )
 
 x, y, z = ss.def_generators()

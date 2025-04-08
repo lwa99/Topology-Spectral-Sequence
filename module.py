@@ -19,17 +19,6 @@ class Module:
         self.page = page
         self.bigrade = bigrade
 
-        # Calculate the actual basis.
-        # combined: Matrix = Matrix.hstack(ker_basis, basis, Matrix.eye(basis.rows))
-        # rref, pivots = combined.rref()
-        #
-        # ker_basis_idx = []
-        # sp_basis_idx = []
-        # for i in pivots:
-        #     if i < ker_basis.cols:
-        #         ker_basis_idx.append(i)
-        #     elif i < ker_basis.cols + basis.cols:
-        #         sp_basis_idx.append(i - ker_basis.cols)
         ker_basis_idx, sp_basis_idx, self.basis_inv = Matrix.multi_reduction(ker_basis, basis)
 
         self.sp_basis: Matrix = basis[:, sp_basis_idx]
@@ -63,7 +52,7 @@ class Module:
 
         indicator = self.basis_inv * vec
         i = len(indicator) - 1
-        while indicator[i] == self.page.ss(0) and i >= 0:
+        while indicator[i] == self.page.ss.domain(0) and i >= 0:
             i -= 1
 
         if i >= self.ker_basis.cols + self.sp_basis.cols:

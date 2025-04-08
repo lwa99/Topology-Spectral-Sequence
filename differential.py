@@ -4,12 +4,14 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from page import Page
 
-from utilities import Matrix, SortedDict, monomial, Polynomial, Vector
+from utilities import Matrix, Vector
 from element import HomoElem, Bigrade
+from sympy import Poly
+from sortedcontainers import SortedDict
 
 
 class Differential:
-    def __init__(self, page: Page, io_pairs: dict[Polynomial, Polynomial], d_bigrade: Bigrade):
+    def __init__(self, page: Page, io_pairs: dict[Poly, Poly], d_bigrade: Bigrade):
         self.page = page
         self.d_bigrade = d_bigrade
         self.knowledge: dict[HomoElem, HomoElem] = {}
@@ -53,17 +55,9 @@ class Differential:
                 print(bigrade)
                 print(self.page.ss.get_abs_basis(bigrade))
                 unknown_elem = HomoElem(self.page, abs_bigrade=bigrade, abs_coordinate=module.sp_basis.col(i))
-                input_str = input(f"Please input d_{self.page.page_num}(  {unknown_elem}  )")
+                expr = input(f"Please input d_{self.page.page_num}(  {unknown_elem}  )")
 
-                for j, g in enumerate(self.page.ss.generators):
-                    exponent = [0] * len(self.page.ss.generators)
-                    exponent[j] = 1
-                    exec(f"{g} = monomial(exponent)")
-                s = monomial([0] * len(self.page.ss.generators))
-                temp_poly = eval(input_str)
-                print(temp_poly)
-
-                target = HomoElem(self.page, poly=temp_poly)
+                target = HomoElem(self.page, expr=expr)
                 if target.isZero():
                     a = Matrix([0]*target_dim)
                     res = res.row_join(a)
