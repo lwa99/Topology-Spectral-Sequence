@@ -25,6 +25,13 @@ class SpectralSequence:
         # A dictionary that maps bigrades to exponents
         self.absolute_bases: dict[Bigrade: tuple[Exponent, ...]] = {}
 
+    @property
+    def gen_num(self):
+        return len(self.generators)
+
+    def kill(self, *polys: Polynomial):
+        self.relations.extend(polys)
+
     def add_relation(self, relation: Polynomial):
         self.relations.append(relation)
 
@@ -93,6 +100,7 @@ class SpectralSequence:
         return abs_bigrade, abs_coordinate
 
     def __call__(self, val):
+        print("WARNING: __call__ for spectral sequence is going to be deprecated.")
         if isinstance(val, int):
             return self.ff(val)
         elif isinstance(val, dict):
@@ -100,27 +108,11 @@ class SpectralSequence:
         else:
             return monomial(val)
 
-    # def get_std_coordinate(self, coef_map: SortedDict) -> Vector | None:
-    #     bigrade = None
-    #     res = None
-    #     assert len(coef_map) > 0
-    #     for exponent, coef in coef_map.items():
-    #         if bigrade is None:
-    #             bigrade = self.get_abs_bigrade(exponent)
-    #         else:
-    #             assert bigrade == self.get_abs_bigrade(exponent)
-    #
-    #         basis = self.get_actual_basis(bigrade)
-    #         cur = []
-    #         for n, i in enumerate(basis):
-    #             if i == exponent:
-    #                 cur.append(1)
-    #                 cur.extend([0] * (len(basis) - n - 1))
-    #                 break
-    #             else:
-    #                 cur.append(0)
-    #         if res is None:
-    #             res = Vector(cur) * coef
-    #         else:
-    #             res += Vector(cur) * coef
-    #     return res
+    def def_generators(self) -> tuple[Polynomial, ...]:
+        res: list[Polynomial, ...] = []
+        for i in range(self.gen_num):
+            temp = [0] * self.gen_num
+            temp[i] = 1
+            res.append(monomial(temp))
+        return tuple(res)
+

@@ -12,9 +12,13 @@ ss = SpectralSequence(
     ]),
     97
 )
-ss.add_relation(ss([2, 0, 0]))
-ss.add_relation(ss([0, 4, 0]))
-ss.add_relation(ss([0, 0, 2]))
+
+x, y, z = ss.def_generators()
+
+ss.kill(x**2, y**4, z**2)
+# ss.add_relation(ss([2, 0, 0]))
+# ss.add_relation(ss([0, 4, 0]))
+# ss.add_relation(ss([0, 0, 2]))
 
 Z = monomial([0, 0, 0])
 
@@ -22,9 +26,9 @@ print(ss.get_abs_basis(Bigrade([7, 3])))
 p_1 = Page(
     ss, 1,
     {
-        ss([1, 0, 0]): 0*Z,
-        ss([0, 1, 0]): 0*Z,
-        ss([0, 0, 1]): 0*Z
+        x: 0*Z,
+        y: 0*Z,
+        z: 0*Z
     },
     (1, -1)
 )
@@ -32,7 +36,7 @@ p_1 = Page(
 p_2 = Page(
     ss, 2,
     {
-        ss([1, 0, 0]): ss([0, 1, 0])**3
+        x: y**3
     },
     (2, -1)
 )
@@ -40,7 +44,7 @@ p_2 = Page(
 p_3 = Page(
     ss, 3,
     {
-        ss([0, 0, 1]): ss([0, 1, 0])
+        z: y
     },
     (3, -2)
 )
