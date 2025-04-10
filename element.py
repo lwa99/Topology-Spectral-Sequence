@@ -55,7 +55,7 @@ class HomoElem:
             assert abs_coordinate is None
             assert expr is not None
             poly = Poly(expr, *ss.gen, domain=ss.domain)
-            if poly.is_zero():
+            if poly.is_zero:
                 self.bigrade: Bigrade | None = None
                 self.coordinate: Vector | None = None
                 self.poly = ss.domain(0)
@@ -118,17 +118,8 @@ class HomoElem:
         return: whether self divides other, considering the relations.
         """
 
-    def __str__(self):
-        output = ""
-        if len(self.poly) == 0:
-            return "zero polynomial (element)"
-        for key, value in self.poly.items():
-            output += str(value)
-            for i, degree in enumerate(key):
-                output += f"({self.page.ss.gen[i]}^{degree})"
-            output += " + "
-        output = output[:-2]
-        return output
+    def __repr__(self):
+        return str(self.poly.as_expr())
 
 
 if __name__ == "__main__":

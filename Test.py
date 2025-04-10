@@ -1,59 +1,31 @@
 from sympy.abc import symbols
 from sympy import GF, QQ
 from spectral_sequence import SpectralSequence
-from page import Page
 from element import HomoElem, Bigrade
 
 x, y, z = symbols(["x", "y", "z"])
 ss = SpectralSequence(
+    QQ,
     [x, y, z],
     [[7, 3, 0],
      [1, 0, 2]],
-    QQ
+    [[1, 0],
+     [-1, 1]]
 )
-
-x, y, z = ss.def_generators()
+# Note: [[1, 0],
+#       [-1, 1]]
+# means that the bigrade of d_n is
+#       [[1,  0], *  [n  = [n
+#        [-1, 1]]     1] =  -n + 1]
 
 ss.kill(x**2, y**4, z**2)
-# ss.add_relation(ss([2, 0, 0]))
-# ss.add_relation(ss([0, 4, 0]))
-# ss.add_relation(ss([0, 0, 2]))
-
-Z = monomial([0, 0, 0])
-
-print(ss.get_abs_basis(Bigrade([7, 3])))
-p_1 = Page(
-    ss, 1,
-    {
-        x: 0*Z,
-        y: 0*Z,
-        z: 0*Z
-    },
-    (1, -1)
-)
-
-p_2 = Page(
-    ss, 2,
-    {
-        x: y**3
-    },
-    (2, -1)
-)
-
-p_3 = Page(
-    ss, 3,
-    {
-        z: y
-    },
-    (3, -2)
-)
-
-m = p_3.get_module(Bigrade([9, 2]))
+p_1 = ss.add_page({x: 0, y: 0, z: 0})
+p_2 = ss.add_page({x: y**3})
+p_3 = ss.add_page({z: y})
+p_4 = ss.add_page()
+m = p_4[10, 1]
 
 print(m.dim)
 print(m.ker_basis)
-print(ss.get_abs_basis(Bigrade([9, 2])))
 for j in range(m.sp_basis.cols):
-    print(m.sp_basis.col(j))
     print(HomoElem(m.page, abs_coordinate=m.sp_basis.col(j), abs_bigrade=m.bigrade))
-

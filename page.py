@@ -19,9 +19,7 @@ class Page:
         self.subspaces = SortedDict([])
         self.d = Differential(self, io_pairs, Bigrade(d_bigrade))
 
-        self.ss.pages.append(self)
-
-    def get_module(self, bigrade):
+    def get_module(self, bigrade: Bigrade):
         if bigrade in self.subspaces:
             return self.subspaces[bigrade]
         else:
@@ -30,25 +28,12 @@ class Page:
             return output
 
     def generate_module(self, bigrade) -> Module:
-        # This is the function that handles generates subspaces of new pages.
         if self.page_num == 1:
             return Module(self, bigrade,
                           Matrix.eye(self.ss.get_abs_dimension(bigrade)),
                           self.ss.get_ker_basis(bigrade)
                           )
 
-        """
-        计算 A2 的核（kernel）以及 A1 的像（image）。
-
-        参数：
-        - M1: 模块 M1，具有一个已知的 bigrade。
-        - differential_bigrade: 微分的 bigrade，用于计算 M0。
-        - get_matrix: 一个方法，输入 bigrade，返回相应的矩阵。
-
-        返回：
-        - kernel_A2: A2 的核（null space）。
-        - image_A1: A1 的像（column space）。
-        """
         prev_page = self.ss.pages[self.page_num - 1]
         # 计算 prev 的 bigrade
         prev_bigrade = bigrade - prev_page.d.d_bigrade  # 直接用向量减法
@@ -64,6 +49,9 @@ class Page:
         image_prev = matrix_prev.columnspace()
 
         return Module(self, bigrade, Matrix.hstack(*kernel_next), Matrix.hstack(*image_prev))
+
+    def __getitem__(self, item):
+        return self.get_module(Bigrade(item))
 
     # def find_kernels_for_division(self,
     #                               a: Polynomial,

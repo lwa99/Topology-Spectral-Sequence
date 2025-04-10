@@ -2,14 +2,14 @@ from __future__ import annotations
 
 from element import Bigrade
 from page import Page
-from utilities import Matrix, Vector, convex_integral_combinations
-from sympy import Poly, Symbol, Expr
+from utilities import Matrix, Vector, convex_integral_combinations, Poly
+from sympy import Symbol
 from collections.abc import Iterable
 
 
 class SpectralSequence:
-    def __init__(self, gen: list[Symbol], generator_bigrades, domain):
-        self.gen: list[Poly] = [Poly(g, *gen, domain=domain) for g in gen]
+    def __init__(self, domain, gen: list[Symbol], generator_bigrades, diff_bideg_coef):
+        self.gen = gen
         generator_bigrades = Matrix(generator_bigrades)
 
         assert len(gen) == generator_bigrades.cols
@@ -24,15 +24,15 @@ class SpectralSequence:
         # A dictionary that maps bigrades to exponents
         self.absolute_bases: dict[Bigrade: tuple[tuple, ...]] = {}
 
+        self.diff_bideg_coef = Matrix(diff_bideg_coef)
+
     @property
     def gen_num(self):
         return len(self.gen)
 
-    # def kill(self, *polys: Polynomial):
-    #     self.relations.extend(polys)
-
-    def add_relation(self, relation: Expr):
-        self.relations.append(Poly(relation, *self.gen, domain=self.domain))
+    def kill(self, *relations):
+        for relation in relations:
+            self.relations.append(Poly(relation, *self.gen, domain=self.domain))
 
     def as_mono(self, exps: Iterable[int]):
         """
@@ -55,10 +55,10 @@ class SpectralSequence:
                 temp_bigrade, temp_coordinate = self.get_abs_info(
                     self.as_mono(s_exp[:-1]) * relation_poly ** s_exp[-1]
                 )
-                print(f"Page 1:"
-                      f"Killed {self.as_mono(s_exp[:-1]) * relation_poly ** s_exp[-1]} in {bigrade} as it equals to"
-                      f"{self.as_mono(s_exp[:-1])} * {relation_poly} ** {s_exp[-1]} where {relation_poly} is killed "
-                      f"initially.")
+                print(f"Page 1:\n"
+                      f"\tKilled {self.as_mono(s_exp[:-1]) * relation_poly ** s_exp[-1]} in {bigrade}"
+                      f"\tas it equals to {self.as_mono(s_exp[:-1])} * "
+                      f"{relation_poly} ** {s_exp[-1]} where \t{relation_poly} = 0")
                 if temp_coordinate not in res:
                     res.append(temp_coordinate)
         return Matrix.hstack(*res)
@@ -105,27 +105,10 @@ class SpectralSequence:
 
         return abs_bigrade, abs_coordinate
 
-    # def get_std_coordinate(self, coef_map: SortedDict) -> Vector | None:
-    #     bigrade = None
-    #     res = None
-    #     assert len(coef_map) > 0
-    #     for exponent, coef in coef_map.items():
-    #         if bigrade is None:
-    #             bigrade = self.get_abs_bigrade(exponent)
-    #         else:
-    #             assert bigrade == self.get_abs_bigrade(exponent)
-    #
-    #         basis = self.get_actual_basis(bigrade)
-    #         cur = []
-    #         for n, i in enumerate(basis):
-    #             if i == exponent:
-    #                 cur.append(1)
-    #                 cur.extend([0] * (len(basis) - n - 1))
-    #                 break
-    #             else:
-    #                 cur.append(0)
-    #         if res is None:
-    #             res = Vector(cur) * coef
-    #         else:
-    #             res += Vector(cur) * coef
-    #     return res
+    def add_page(self, known_diff: dict = None):
+        if known_diff is None:
+            known_diff = {}
+        page_n = len(self.pages)
+        new_page = Page(self, page_n, known_diff, self.diff_bideg_coef * Vector([page_n, 1]))
+        self.pages.append(new_page)
+        return new_page

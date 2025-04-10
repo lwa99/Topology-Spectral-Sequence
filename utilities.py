@@ -1,8 +1,8 @@
 from __future__ import annotations
-from sympy import Matrix as SMatrix, Poly
+from sympy import Matrix as SMatrix, Poly as _Poly
 from itertools import product
 from warnings import warn
-from collections.abc import Iterable
+
 
 class Prime:
     """
@@ -136,118 +136,11 @@ class Vector(Matrix):
         return f"Vector {self.tolist()}"
 
 
-# class Polynomial(SortedDict):
-#     base_field = None
-#     variables = None
-#
-#     @classmethod
-#     def initiate(cls, base_field, variables):
-#         if Polynomial.base_field is not None:
-#             raise RuntimeWarning("Polynomial: Base Field Overridden")
-#         cls.base_field = base_field
-#         cls.variables = variables
-#
-#     def __add__(self, other: Polynomial):
-#         assert self.base_field is not None, "Set the base field first."
-#         if len(self) == 0:
-#             return deepcopy(other)
-#         if len(other) == 0:
-#             return deepcopy(self)
-#
-#         output = deepcopy(self)
-#         for exp, coef in other.items():
-#             if exp in output.keys():
-#                 temp = output[exp] + coef
-#                 if temp == self.base_field(0):
-#                     del output[exp]
-#                 else:
-#                     output[exp] = temp
-#             else:
-#                 output[exp] = coef
-#         return output
-#
-#     def __mul__(self, other):
-#         assert self.base_field is not None, "Set the base field first."
-#         if isinstance(other, Polynomial):
-#             if len(self) == 0:
-#                 return deepcopy(self)
-#             if len(other) == 0:
-#                 return deepcopy(other)
-#
-#             # From now on we may assume that both operands are non-zero
-#             output = Polynomial()
-#             for exp_1, coef_1 in self.items():
-#                 for exp_2, coef_2 in other.items():
-#                     output[exp_1 + exp_2] = coef_1 * coef_2
-#         else:
-#             output = deepcopy(self)
-#             for exp, coef in output.items():
-#                 output[exp] = coef * other
-#         return output
-#
-#     def __rmul__(self, other):
-#         return self * other
-#
-#     def __sub__(self, other):
-#         return self + self.base_field(-1) * other
-#
-#     def __pow__(self, power, modulo=None):
-#         assert power >= 0
-#         if power == 0:
-#             return monomial([0]*len(self.variables))
-#         if power == 1:
-#             return self
-#         temp = (self ** (power // 2))
-#         if power % 2 == 0:
-#             return temp * temp
-#         else:
-#             return temp * temp * self
-#
-#     def __hash__(self):
-#         output = 0
-#         for expo in self.keys():
-#             output += hash(expo)
-#         output -= hash(Vector(self.values()))
-#         return int(output)
-#
-#     def __repr__(self):
-#         output = ""
-#         if len(self) == 0:
-#             return "zero polynomial"
-#         for key, value in self.items():
-#             output += str(value.val)
-#             for i, exponent in enumerate(key):
-#                 output += f"({self.variables[i]}^{exponent})"
-#             output += " + "
-#         output = output[:-2]
-#         return output
-#
-#     def __str__(self):
-#         return self.__repr__()
-#
-#
-# def monomial(exp: list):
-#     return Polynomial({Exponent(exp): Polynomial.base_field(1)})
+class Poly(_Poly):
+    def __str__(self):
+        return str(self.as_expr())
 
-
-# _stored: dict[tuple[int, int], tuple[tuple[int]]] = {(0, 1): ((0,),)}
-#
-#
-# def decompositions(_n: int, _k: int) -> tuple[tuple[int, ...]]:
-#     if (_n, _k) in _stored.keys():
-#         return _stored[(_n, _k)]
-#     if _k == 1:
-#         _stored[(_n, 1)] = ((_n,),)
-#         return ((_n,),)
-#     res_builder = []
-#     for _i in range(0, _n+1):
-#         for config in decompositions(_n - _i, _k-1):
-#             res_builder.append(
-#                 (_i, ) + config
-#             )
-#
-#     _stored[(_n, _k)] = tuple(res_builder)
-#     return tuple(res_builder)
+    __repr__ = __str__
 
 
 def _next_config(cur_config: list, bounds: list):

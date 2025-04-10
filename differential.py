@@ -4,9 +4,8 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from page import Page
 
-from utilities import Matrix, Vector
+from utilities import Matrix, Poly
 from element import HomoElem, Bigrade
-from sympy import Poly
 from sortedcontainers import SortedDict
 
 
@@ -32,7 +31,6 @@ class Differential:
         # Expand pre_basis to a basis of the starting module
         module = self.page.get_module(bigrade)
         pivots_1, pivots_2, pivots_3, inv = Matrix.multi_reduction(pre_basis, module.ker_basis, module.sp_basis)
-        print("Pivots:", pivots_1, pivots_2, pivots_3)
         target_bigrade = bigrade + self.d_bigrade
         target_dim = self.page.ss.get_abs_dimension(target_bigrade)
         if target_dim > 0:
@@ -51,11 +49,12 @@ class Differential:
                 res = res.row_join(Matrix.zeros(res.rows, 1))
 
             for i in pivots_3:
-                print(module.sp_basis.col(i))
-                print(bigrade)
-                print(self.page.ss.get_abs_basis(bigrade))
+                print(f"Page {self.page.page_num}:\n"
+                      f"\tOne unknown differential at abs_coordinate {module.sp_basis.col(i).tolist()} "
+                      f"encountered in the spanning basis of module {bigrade.tolist()}. The absolute basis here is "
+                      f"{self.page.ss.get_abs_basis(bigrade)}")
                 unknown_elem = HomoElem(self.page, abs_bigrade=bigrade, abs_coordinate=module.sp_basis.col(i))
-                expr = input(f"Please input d_{self.page.page_num}(  {unknown_elem}  )")
+                expr = input(f"Please input d_{self.page.page_num}({unknown_elem})")
 
                 target = HomoElem(self.page, expr=expr)
                 if target.isZero():
