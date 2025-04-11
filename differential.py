@@ -19,7 +19,7 @@ class Differential:
         self.calculated_matrices = SortedDict()
 
     def get_matrix(self, bigrade: Bigrade):
-        if bigrade in self.calculated_matrices:
+        if bigrade in self.calculated_matrices.keys():
             return self.calculated_matrices[bigrade]
 
         # Get all known elements with correct bigrade
@@ -68,6 +68,22 @@ class Differential:
             output = Matrix([[0]*self.page.ss.get_abs_dimension(bigrade)])
         self.calculated_matrices[bigrade] = output
         return output
+
+    def update_knowledge(self, iopair: dict[HomoElem, HomoElem]):
+        newly_added = []
+
+        for key, value in iopair.items():
+            if key in self.knowledge:
+                if self.knowledge[key] != value:
+                    raise ValueError(
+                        f"Conflict for key {key}: existing value {self.knowledge[key]}, new value {value}"
+                    )
+            else:
+                self.knowledge[key] = value
+                newly_added.append(value)
+
+        for val in newly_added:
+            self.knowledge[val] = HomoElem(val.page, expr=0)
 
     def __call__(self, e: HomoElem):
         pass
