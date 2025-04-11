@@ -19,7 +19,7 @@ class Differential:
         self.calculated_matrices = SortedDict()
 
     def get_matrix(self, bigrade: Bigrade):
-        if bigrade in self.calculated_matrices.items():
+        if bigrade in self.calculated_matrices:
             return self.calculated_matrices[bigrade]
 
         # Get all known elements with correct bigrade
