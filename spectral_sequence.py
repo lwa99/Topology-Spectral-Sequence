@@ -2,74 +2,88 @@ from __future__ import annotations
 
 from element import Bigrade
 from page import Page
-from utilities import Matrix, Vector, Prime, Polynomial, Exponent, convex_integral_combinations, monomial
-from sympy import GF
+from utilities import Matrix, Vector, convex_integral_combinations, Poly
+from sympy import Symbol
+from collections.abc import Iterable
 
 
 class SpectralSequence:
-    def __init__(self, generators: list[str], generator_bigrades: Matrix, c: int):
-        self.generators = generators
+    def __init__(self, domain, gen: list[Symbol], generator_bigrades, diff_bideg_coef):
+        self.gen = gen
+        generator_bigrades = Matrix(generator_bigrades)
 
-        assert len(generators) == generator_bigrades.cols
+        assert len(gen) == generator_bigrades.cols
         assert generator_bigrades.rows == 2
         self.generator_bigrades = generator_bigrades
 
-        assert Prime.is_prime(c)
-        self.c = c
-        self.ff = GF(c)  # Base Field
-        Polynomial.initiate(self.ff, self.generators)
+        self.domain = domain  # Base Field
 
-        self.pages: list[Page] = []
-        self.relations: list[Polynomial] = []
+        self.pages: list[Page | None] = [None]  # We used None to occupy the 0 index so that page num agrees with index
+        self.relations: list[Poly] = []
 
         # A dictionary that maps bigrades to exponents
-        self.absolute_bases: dict[Bigrade: tuple[Exponent, ...]] = {}
+        self.absolute_bases: dict[Bigrade: tuple[tuple, ...]] = {}
 
-    def add_relation(self, relation: Polynomial):
-        self.relations.append(relation)
+        self.diff_bideg_coef = Matrix(diff_bideg_coef)
+
+    @property
+    def gen_num(self):
+        return len(self.gen)
+
+    def kill(self, *relations):
+        for relation in relations:
+            self.relations.append(Poly(relation, *self.gen, domain=self.domain))
+
+    def as_mono(self, exps: Iterable[int]):
+        """
+        Convert exponent into monomial
+        """
+        return Poly.from_dict({tuple(exps): self.domain(1)}, *self.gen, domain=self.domain)
 
     def get_ker_basis(self, bigrade) -> Matrix:
         """
         Calculate the first page kernel basis at a given bigrade from stored relations
         """
         res = []
-        for relation in self.relations:
-            abs_bigrade, abs_coordinate = self.get_abs_info(relation)
+        for relation_poly in self.relations:
+            abs_bigrade, abs_coordinate = self.get_abs_info(relation_poly)
             skewed_exps = convex_integral_combinations(self.generator_bigrades.row_join(abs_bigrade), bigrade)
             for s_exp in skewed_exps:
                 if s_exp[-1] == 0:
                     continue
 
                 temp_bigrade, temp_coordinate = self.get_abs_info(
-                    monomial(s_exp[:-1]) * relation ** s_exp[-1]
+                    self.as_mono(s_exp[:-1]) * relation_poly ** s_exp[-1]
                 )
-                print("Formula:", f"{monomial(s_exp[:-1])} * {relation} ** {s_exp[-1]} = "
-                                  f"{monomial(s_exp[:-1]) * relation ** s_exp[-1]}")
-                print()
+                print(f"Page 1:\n"
+                      f"\tKilled {self.as_mono(s_exp[:-1]) * relation_poly ** s_exp[-1]} in {bigrade}"
+                      f"\tas it equals to {self.as_mono(s_exp[:-1])} * "
+                      f"{relation_poly} ** {s_exp[-1]} where \t{relation_poly} = 0")
                 if temp_coordinate not in res:
                     res.append(temp_coordinate)
         return Matrix.hstack(*res)
 
-    def get_abs_basis(self, bigrade) -> tuple[Exponent, ...]:
+    def get_abs_basis(self, bigrade) -> tuple[tuple, ...]:
         if bigrade in self.absolute_bases.keys():
             return self.absolute_bases[bigrade]
         else:
-            res = tuple([Exponent(v) for v in convex_integral_combinations(self.generator_bigrades, bigrade)])
+            res = convex_integral_combinations(self.generator_bigrades, bigrade)
             self.absolute_bases[bigrade] = res
             return res
 
     def get_abs_dimension(self, bigrade: Bigrade):
+        if bigrade[1] < 0 or (bigrade[1] == 0 and bigrade[0] <= 0):
+            return 0
         return len(self.get_abs_basis(bigrade))
 
-    def get_abs_bigrade(self, exponent) -> Bigrade:
-        return Bigrade(self.generator_bigrades * exponent)
+    def get_abs_bigrade(self, exponent: Iterable[int]) -> Bigrade:
+        return Bigrade(self.generator_bigrades * Matrix(exponent))
 
-    def get_abs_info(self, coef_map) -> tuple[Bigrade, Vector]:
-        print("abs_info called on:", coef_map.__str__())
+    def get_abs_info(self, poly: Poly) -> tuple[Bigrade, Vector]:
         abs_bigrade = None
         abs_coordinate = None
-        assert len(coef_map) > 0
-        for exponent, coef in coef_map.items():
+        assert not poly.is_zero
+        for exponent, coef in poly.terms():
             if abs_bigrade is None:
                 abs_bigrade = self.get_abs_bigrade(exponent)
             else:
@@ -79,48 +93,22 @@ class SpectralSequence:
             cur = []
             for n, i in enumerate(basis):
                 if i == exponent:
-                    cur.append(self(1))
-                    cur.extend([self(0)] * (len(basis) - n - 1))
+                    cur.append(self.domain(1))
+                    cur.extend([self.domain(0)] * (len(basis) - n - 1))
                     break
                 else:
-                    cur.append(self(0))
+                    cur.append(self.domain(0))
             if abs_coordinate is None:
                 abs_coordinate = Vector(cur) * coef
             else:
                 abs_coordinate += Vector(cur) * coef
 
-        print("abs_info returns:", abs_bigrade, abs_coordinate)
         return abs_bigrade, abs_coordinate
 
-    def __call__(self, val):
-        if isinstance(val, int):
-            return self.ff(val)
-        elif isinstance(val, dict):
-            return Polynomial(val)
-        else:
-            return monomial(val)
-
-    # def get_std_coordinate(self, coef_map: SortedDict) -> Vector | None:
-    #     bigrade = None
-    #     res = None
-    #     assert len(coef_map) > 0
-    #     for exponent, coef in coef_map.items():
-    #         if bigrade is None:
-    #             bigrade = self.get_abs_bigrade(exponent)
-    #         else:
-    #             assert bigrade == self.get_abs_bigrade(exponent)
-    #
-    #         basis = self.get_actual_basis(bigrade)
-    #         cur = []
-    #         for n, i in enumerate(basis):
-    #             if i == exponent:
-    #                 cur.append(1)
-    #                 cur.extend([0] * (len(basis) - n - 1))
-    #                 break
-    #             else:
-    #                 cur.append(0)
-    #         if res is None:
-    #             res = Vector(cur) * coef
-    #         else:
-    #             res += Vector(cur) * coef
-    #     return res
+    def add_page(self, known_diff: dict = None):
+        if known_diff is None:
+            known_diff = {}
+        page_n = len(self.pages)
+        new_page = Page(self, page_n, known_diff, self.diff_bideg_coef * Vector([page_n, 1]))
+        self.pages.append(new_page)
+        return new_page

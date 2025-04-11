@@ -7,7 +7,8 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from page import Page
 
-from utilities import Vector, Polynomial
+from utilities import Vector, Matrix
+from sympy import Poly
 
 
 class Bigrade(Vector):
@@ -37,7 +38,7 @@ class HomoElem:
 
     def __init__(self,
                  page: Page,
-                 poly: Polynomial = None,
+                 expr=None,
                  abs_bigrade: Vector = None,
                  abs_coordinate: Vector = None):
         """
@@ -49,40 +50,48 @@ class HomoElem:
         self.page = page
         ss = page.ss
 
-        if poly is None:
-            assert abs_bigrade is not None
-            assert abs_coordinate is not None
-
-            # build the coef_map from coordinate
-            poly = Polynomial()
-            actual_basis = ss.get_abs_basis(abs_bigrade)
-            for i, exponent in enumerate(actual_basis):
-                poly[exponent] = abs_coordinate[i]
-
-        else:
-            assert abs_bigrade is None
+        # Step 1: Get abs_info
+        if abs_bigrade is None:
             assert abs_coordinate is None
-
-            if len(poly) == 0:
+            assert expr is not None
+            poly = Poly(expr, *ss.gen, domain=ss.domain)
+            if poly.is_zero:
                 self.bigrade: Bigrade | None = None
                 self.coordinate: Vector | None = None
-                self.poly: Polynomial = Polynomial()
-
-            # Get absolute bigrade and coordinate
+                self.poly = ss.domain(0)
+                return
             abs_bigrade, abs_coordinate = ss.get_abs_info(poly)
+
         # Step 2: Determine if it is in the kernel and set actual bigrade.
         subspace = page.get_module(abs_bigrade)
         r = subspace.classify(abs_coordinate)
         if r == 2:
-            raise ValueError("Element does not exist")
+            if abs_bigrade == Vector([3, 0]):
+                print(subspace.dim)
+            raise ValueError(f"Element {expr.__repr__()} "
+                             f"(Bigrade: {abs_bigrade}) does not exist in page {self.page.page_num}.")
         elif r == 1:
             self.bigrade = abs_bigrade
             self.coordinate = abs_coordinate
-            self.poly = poly
         else:
             self.bigrade: Bigrade | None = None
             self.coordinate: Vector | None = None
-            self.poly = Polynomial()
+            self.poly = ss.domain(0)
+            return
+
+        # Step 3: Reconstruct Polynomial in the case that we have a non-trivial element.
+        if expr is None:
+            assert abs_bigrade is not None
+            assert abs_coordinate is not None
+
+            # build the polynomial from coordinate
+            poly_dict = {}
+            actual_basis = ss.get_abs_basis(abs_bigrade)
+            for i, exponent in enumerate(actual_basis):
+                poly_dict[exponent] = abs_coordinate[i]
+            self.poly = Poly.from_dict(poly_dict, *ss.gen, domain=ss.domain)
+        else:
+            self.poly = Poly(expr, *ss.gen, domain=ss.domain)
 
     def isZero(self):
         return self.bigrade is None
@@ -96,26 +105,21 @@ class HomoElem:
     def __mul__(self, other):
         return HomoElem(self.page, self.poly * other.poly)
 
-
     def __eq__(self, other):
         return (self - other).isZero
+
+    def __hash__(self):
+        if self.isZero():
+            return 0
+        return Matrix(self.coordinate.col_join(self.bigrade)).__hash__()
 
     def divides(self, other):
         """
         return: whether self divides other, considering the relations.
         """
 
-    def __str__(self):
-        output = ""
-        if len(self.poly) == 0:
-            return "zero polynomial (element)"
-        for key, value in self.poly.items():
-            output += str(value.val)
-            for i, degree in enumerate(key):
-                output += f"({self.page.ss.generators[i]}^{degree})"
-            output += " + "
-        output = output[:-2]
-        return output
+    def __repr__(self):
+        return str(self.poly.as_expr())
 
 
 if __name__ == "__main__":
