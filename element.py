@@ -66,8 +66,6 @@ class HomoElem:
         subspace = page.get_module(abs_bigrade)
         r = subspace.classify(abs_coordinate)
         if r == 2:
-            if abs_bigrade == Vector([3, 0]):
-                print(subspace.dim)
             raise ValueError(f"Element {expr.__repr__()} "
                              f"(Bigrade: {abs_bigrade}) does not exist in page {self.page.page_num}.")
         elif r == 1:

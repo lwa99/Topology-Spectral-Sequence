@@ -32,8 +32,13 @@ class Module:
         return self.ker_basis.row_join(self.sp_basis)
 
     @property
+    def abs_dim(self):
+        assert self.page.ss.get_abs_dimension(self.bigrade) == len(self.basis)
+        return len(self.basis)
+
+    @property
     def dim(self):
-        return self.page.ss.get_abs_dimension(self.bigrade)
+        return len(self.sp_basis)
 
     def __contains__(self, e: HomoElem):
         if e.page != self.page:
@@ -43,12 +48,12 @@ class Module:
         return e.bigrade == self.bigrade
 
     def classify(self, vec: Vector):
-        if self.dim == 0:
+        if self.abs_dim == 0:
             if vec.is_zero_matrix:
                 return 0
             else:
                 return 2
-        assert len(vec) == self.dim
+        assert len(vec) == self.abs_dim
 
         indicator = self.basis_inv * vec
         i = len(indicator) - 1

@@ -1,7 +1,7 @@
 from sympy.abc import symbols
 from sympy import GF, QQ
 from spectral_sequence import SpectralSequence
-from element import HomoElem, Bigrade
+from element import HomoElem
 
 x, y, z = symbols(["x", "y", "z"])
 ss = SpectralSequence(
@@ -25,6 +25,7 @@ p_3 = ss.add_page({z: y})
 p_4 = ss.add_page()
 m = p_4[10, 1]
 
+print(m.abs_dim)
 print(m.dim)
 print(m.ker_basis)
 for j in range(m.sp_basis.cols):

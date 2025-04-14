@@ -48,7 +48,9 @@ class Page:
         # 计算 A1 的像（列空间）
         image_prev = matrix_prev.columnspace()
 
-        return Module(self, bigrade, Matrix.hstack(*kernel_next), Matrix.hstack(*image_prev))
+        return Module(self, bigrade,
+                      Matrix.hstack(*kernel_next),
+                      Matrix.hstack(*image_prev, prev_page[bigrade].ker_basis))
 
     def __getitem__(self, item):
         return self.get_module(Bigrade(item))

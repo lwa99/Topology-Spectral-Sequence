@@ -4,13 +4,13 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from page import Page
 
-from utilities import Matrix, Poly
+from utilities import Matrix
 from element import HomoElem, Bigrade
 from sortedcontainers import SortedDict
 
 
 class Differential:
-    def __init__(self, page: Page, io_pairs: dict[Poly, Poly], d_bigrade: Bigrade):
+    def __init__(self, page: Page, io_pairs: dict, d_bigrade: Bigrade):
         self.page = page
         self.d_bigrade = d_bigrade
         self.knowledge: dict[HomoElem, HomoElem] = {}
@@ -31,8 +31,14 @@ class Differential:
         # Expand pre_basis to a basis of the starting module
         module = self.page.get_module(bigrade)
         pivots_1, pivots_2, pivots_3, inv = Matrix.multi_reduction(pre_basis, module.ker_basis, module.sp_basis)
+
         target_bigrade = bigrade + self.d_bigrade
         target_dim = self.page.ss.get_abs_dimension(target_bigrade)
+        if target_dim != 0:
+            target_dim = self.page[target_bigrade].dim
+            print(self.page[target_bigrade].ker_basis, self.page[target_bigrade].sp_basis,
+                  self.page.ss.get_abs_basis(target_bigrade))
+        print(bigrade, target_bigrade, target_dim)
         if target_dim > 0:
             res = Matrix([[]]*target_dim)
 
