@@ -3,12 +3,12 @@ from sympy import GF, QQ
 from spectral_sequence import SpectralSequence
 from element import HomoElem
 
-x, y, z = symbols(["x", "y", "z"])
+a, t = symbols(["a", "t"])
 ss = SpectralSequence(
-    QQ,
-    [x, y, z],
-    [[7, 3, 0],
-     [1, 0, 2]],
+    GF(3),
+    [a, t],
+    [[3, 0],  # Vertical
+     [0, 2]],
     [[1, 0],
      [-1, 1]]
 )
@@ -18,12 +18,12 @@ ss = SpectralSequence(
 #       [[1,  0], *  [n  = [n
 #        [-1, 1]]     1] =  -n + 1]
 
-ss.kill(x**2, y**4, z**2)
-p_1 = ss.add_page({x: 0, y: 0, z: 0})
-p_2 = ss.add_page({x: y**3})
-p_3 = ss.add_page({z: y})
+ss.kill(a**2)
+p_1 = ss.add_page({a: 0, t: 0})
+p_2 = ss.add_page({a: 0, t: 0})
+p_3 = ss.add_page({t: a})
 p_4 = ss.add_page()
-m = p_4[10, 1]
+m = p_4[0, 6]
 
 print(m.abs_dim)
 print(m.dim)

@@ -5,12 +5,12 @@ if TYPE_CHECKING:
     from page import Page
 
 from utilities import Matrix
-from element import HomoElem, Bigrade
+from element import HomoElem, Bidegree
 from sortedcontainers import SortedDict
 
 
 class Differential:
-    def __init__(self, page: Page, io_pairs: dict, d_bigrade: Bigrade):
+    def __init__(self, page: Page, io_pairs: dict, d_bigrade: Bidegree):
         self.page = page
         self.d_bigrade = d_bigrade
         self.knowledge: dict[HomoElem, HomoElem] = {}
@@ -18,8 +18,8 @@ class Differential:
             self.knowledge[HomoElem(page, key)] = HomoElem(page, value)
         self.calculated_matrices = SortedDict()
 
-    def get_matrix(self, bigrade: Bigrade):
-        if bigrade in self.calculated_matrices.items():
+    def get_matrix(self, bigrade: Bidegree, debug=False):
+        if bigrade in self.calculated_matrices:
             return self.calculated_matrices[bigrade]
 
         # Get all known elements with correct bigrade
@@ -36,9 +36,9 @@ class Differential:
         target_dim = self.page.ss.get_abs_dimension(target_bigrade)
         if target_dim != 0:
             target_dim = self.page[target_bigrade].dim
-            print(self.page[target_bigrade].ker_basis, self.page[target_bigrade].sp_basis,
-                  self.page.ss.get_abs_basis(target_bigrade))
-        print(bigrade, target_bigrade, target_dim)
+            # print(self.page[target_bigrade].ker_basis, self.page[target_bigrade].sp_basis,
+            #     self.page.ss.get_abs_basis(target_bigrade))
+        # print(bigrade, target_bigrade, target_dim)
         if target_dim > 0:
             res = Matrix([[]]*target_dim)
 

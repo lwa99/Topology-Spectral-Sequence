@@ -11,7 +11,7 @@ from utilities import Vector, Matrix
 from sympy import Poly
 
 
-class Bigrade(Vector):
+class Bidegree(Vector):
     def __repr__(self):
         return f"Bigrade {self.tolist()}"
 
@@ -38,7 +38,7 @@ class HomoElem:
 
     def __init__(self,
                  page: Page,
-                 expr=None,
+                 expr = None,
                  abs_bigrade: Vector = None,
                  abs_coordinate: Vector = None):
         """
@@ -56,7 +56,7 @@ class HomoElem:
             assert expr is not None
             poly = Poly(expr, *ss.gen, domain=ss.domain)
             if poly.is_zero:
-                self.bigrade: Bigrade | None = None
+                self.bigrade: Bidegree | None = None
                 self.coordinate: Vector | None = None
                 self.poly = ss.domain(0)
                 return
@@ -72,7 +72,7 @@ class HomoElem:
             self.bigrade = abs_bigrade
             self.coordinate = abs_coordinate
         else:
-            self.bigrade: Bigrade | None = None
+            self.bigrade: Bidegree | None = None
             self.coordinate: Vector | None = None
             self.poly = ss.domain(0)
             return

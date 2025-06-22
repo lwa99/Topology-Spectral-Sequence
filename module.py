@@ -3,13 +3,13 @@ from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from page import Page
-    from element import HomoElem, Bigrade
+    from element import HomoElem, Bidegree
 
 from utilities import Matrix, Vector
 
 
 class Module:
-    def __init__(self, page: Page, bigrade: Bigrade, basis: Matrix, ker_basis: Matrix):
+    def __init__(self, page: Page, bigrade: Bidegree, basis: Matrix, ker_basis: Matrix):
         # initialization should only be called by page.getModule
         self.page = page
 
@@ -33,8 +33,7 @@ class Module:
 
     @property
     def abs_dim(self):
-        assert self.page.ss.get_abs_dimension(self.bigrade) == len(self.basis)
-        return len(self.basis)
+        return self.page.ss.get_abs_dimension(self.bigrade)
 
     @property
     def dim(self):

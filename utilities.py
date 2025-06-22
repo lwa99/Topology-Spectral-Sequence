@@ -53,6 +53,14 @@ class Matrix(SMatrix):
     __hash__ calls the hash function for tuples.
     """
 
+    @classmethod
+    def hstack(cls, *args):
+        non_empty_args = []
+        for m in args:
+            if m.rows != 0 and m.cols != 0:
+                non_empty_args.append(m)
+        return super().hstack(*non_empty_args)
+
     def __lt__(self, other):
         # noinspection PyTypeChecker
         for i, n in enumerate(self):

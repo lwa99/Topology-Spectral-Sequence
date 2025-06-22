@@ -1,8 +1,8 @@
 from sympy.abc import symbols
 from sympy import Poly, QQ
-from element import Bigrade
+from element import Bidegree
 
-a = Bigrade([1, 2])
+a = Bidegree([1, 2])
 print(a)
-b = Bigrade(a)
+b = Bidegree(a)
 print(b)

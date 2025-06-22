@@ -7,7 +7,7 @@ if TYPE_CHECKING:
 from utilities import Matrix, degree_generator
 from sortedcontainers import SortedDict
 from differential import Differential
-from element import Bigrade
+from element import Bidegree
 from sympy import div
 from module import Module
 
@@ -17,9 +17,9 @@ class Page:
         self.ss: SpectralSequence = ss
         self.page_num = page_num
         self.subspaces = SortedDict([])
-        self.d = Differential(self, io_pairs, Bigrade(d_bigrade))
+        self.d = Differential(self, io_pairs, Bidegree(d_bigrade))
 
-    def get_module(self, bigrade: Bigrade):
+    def get_module(self, bigrade: Bidegree):
         if bigrade in self.subspaces:
             return self.subspaces[bigrade]
         else:
@@ -37,9 +37,11 @@ class Page:
         prev_page = self.ss.pages[self.page_num - 1]
         # 计算 prev 的 bigrade
         prev_bigrade = bigrade - prev_page.d.d_bigrade  # 直接用向量减法
+        if self.page_num == 4:
+            print("??", bigrade, prev_page.d.d_bigrade, prev_bigrade)
 
         # 获取 A1 和 A2
-        matrix_prev = prev_page.d.get_matrix(prev_bigrade)  # A1: M0 -> M1 的映射矩阵
+        matrix_prev = prev_page.d.get_matrix(prev_bigrade, debug=self.page_num == 4)  # A1: M0 -> M1 的映射矩阵
         matrix_next = prev_page.d.get_matrix(bigrade)  # A2: M1 -> M_next 的映射矩阵
 
         # 计算 A2 的核（解 Ax=0）
@@ -53,7 +55,7 @@ class Page:
                       Matrix.hstack(*image_prev, prev_page[bigrade].ker_basis))
 
     def __getitem__(self, item):
-        return self.get_module(Bigrade(item))
+        return self.get_module(Bidegree(item))
 
     # def find_kernels_for_division(self,
     #                               a: Polynomial,
