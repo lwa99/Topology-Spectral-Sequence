@@ -12,38 +12,44 @@ from sortedcontainers import SortedDict
 class Differential:
     def __init__(self, page: Page, io_pairs: dict, d_bigrade: Bidegree):
         self.page = page
-        self.d_bigrade = d_bigrade
+        self.d_bidegree = d_bigrade
         self.knowledge: dict[HomoElem, HomoElem] = {}
         for key, value in io_pairs.items():
             self.knowledge[HomoElem(page, key)] = HomoElem(page, value)
         self.calculated_matrices = SortedDict()
 
-    def get_matrix(self, bigrade: Bidegree, debug=False):
-        if bigrade in self.calculated_matrices:
-            return self.calculated_matrices[bigrade]
+    def get_matrix(self, bidegree: Bidegree, debug=False):
+        if bidegree in self.calculated_matrices:
+            return self.calculated_matrices[bidegree]
 
-        # Get all known elements with correct bigrade
+        # Get all known elements with correct bidegree
         pre_basis = Matrix()
         for e in self.knowledge.keys():
-            if e.bigrade == bigrade:
+            if e.bidegree == bidegree:
                 pre_basis = pre_basis.row_join(e.coordinate)
 
+                # Make sure that the target bidegree is correct. It is either None (if the target is zero) or
+                # it should be equal to the starting bidegree added by the differential bidegree.
+                assert self.knowledge[e].bidegree is None or \
+                       self.knowledge[e].bidegree == e.bidegree + self.d_bidegree
+
         # Expand pre_basis to a basis of the starting module
-        module = self.page.get_module(bigrade)
+        module = self.page.get_module(bidegree)
         pivots_1, pivots_2, pivots_3, inv = Matrix.multi_reduction(pre_basis, module.ker_basis, module.sp_basis)
 
-        target_bigrade = bigrade + self.d_bigrade
-        target_dim = self.page.ss.get_abs_dimension(target_bigrade)
-        if target_dim != 0:
-            target_dim = self.page[target_bigrade].dim
-            # print(self.page[target_bigrade].ker_basis, self.page[target_bigrade].sp_basis,
-            #     self.page.ss.get_abs_basis(target_bigrade))
-        # print(bigrade, target_bigrade, target_dim)
+        target_bidegree = bidegree + self.d_bidegree
+        target_abs_dim = self.page.ss.get_abs_dimension(target_bidegree)
+
+        if target_abs_dim == 0:
+            target_dim = 0
+        else:
+            target_dim = self.page[target_bidegree].dim
+
         if target_dim > 0:
             res = Matrix([[]]*target_dim)
 
             for i in pivots_1:
-                elem = HomoElem(self.page, abs_bigrade=bigrade, abs_coordinate=pre_basis.col(i))
+                elem = HomoElem(self.page, abs_bideg=bidegree, abs_coordinate=pre_basis.col(i))
                 target = self.knowledge[elem]
                 if target.isZero():
                     a = Matrix([0]*target_dim)
@@ -52,14 +58,15 @@ class Differential:
                     res = res.row_join(target.coordinate)
 
             for _ in pivots_2:
+                # For the zero basis, their differential is zero, since they are already zero.
                 res = res.row_join(Matrix.zeros(res.rows, 1))
 
             for i in pivots_3:
                 print(f"Page {self.page.page_num}:\n"
                       f"\tOne unknown differential at abs_coordinate {module.sp_basis.col(i).tolist()} "
-                      f"encountered in the spanning basis of module {bigrade.tolist()}. The absolute basis here is "
-                      f"{self.page.ss.get_abs_basis(bigrade)}")
-                unknown_elem = HomoElem(self.page, abs_bigrade=bigrade, abs_coordinate=module.sp_basis.col(i))
+                      f"encountered in the spanning basis of module {bidegree.tolist()}. The absolute basis here is "
+                      f"{self.page.ss.get_abs_basis(bidegree)}")
+                unknown_elem = HomoElem(self.page, abs_bideg=bidegree, abs_coordinate=module.sp_basis.col(i))
                 expr = input(f"Please input d_{self.page.page_num}({unknown_elem})")
 
                 target = HomoElem(self.page, expr=expr)
@@ -71,8 +78,9 @@ class Differential:
 
             output = res * inv * module.basis
         else:
-            output = Matrix([[0]*self.page.ss.get_abs_dimension(bigrade)])
-        self.calculated_matrices[bigrade] = output
+            output = Matrix([[0] * self.page.ss.get_abs_dimension(bidegree)])
+
+        self.calculated_matrices[bidegree] = output
         return output
 
     def __call__(self, e: HomoElem):
@@ -111,30 +119,30 @@ class Differential:
 
     # def compute_differential_matrix(self, domain_bigrade: Matrix) -> np.ndarray:
     #     """
-    #     对于给定的 domain bigrade，利用当前设置好的 differential，
+    #     对于给定的 domain bidegree，利用当前设置好的 differential，
     #     计算 differential 在该向量空间上的矩阵表达。
     #
     #     流程：
     #     1. 枚举出满足 self.generator_bigrades * exponent = domain_bigrade 的所有指数（即 domain basis）。
     #     2. 对于每个基元（以 Element 表示，系数取 1），计算其 differential。
-    #     3. 根据第一个非零 differential 的 bigrade 确定 codomain basis。
+    #     3. 根据第一个非零 differential 的 bidegree 确定 codomain basis。
     #     4. 将 differential 结果展开成 codomain basis 的线性组合，构造出矩阵表示。
     #     """
     #     # 1. 枚举 domain basis
     #     domain_exponents = enumerate_exponents(self, domain_bigrade)
     #     if not domain_exponents:
-    #         print("未找到符合 domain bigrade 的基。")
+    #         print("未找到符合 domain bidegree 的基。")
     #         return np.array([])
     #     domain_basis = [Element(self, exp, self.get_scalar(1)) for exp in domain_exponents]
     #
     #     # 2. 对每个 domain basis 元素应用 differential
     #     differential_images = [self.differential.calculate(exp) for exp in domain_exponents]
     #
-    #     # 3. 确定 codomain bigrade（取第一个非零 differential image 的 bigrade）
+    #     # 3. 确定 codomain bidegree（取第一个非零 differential image 的 bidegree）
     #     target_bigrade = None
     #     for img in differential_images:
-    #         if len(img.coefMap) > 0 and img.bigrade is not None and len(img.bigrade) > 0:
-    #             target_bigrade = img.bigrade
+    #         if len(img.coefMap) > 0 and img.bidegree is not None and len(img.bidegree) > 0:
+    #             target_bigrade = img.bidegree
     #             break
     #     if target_bigrade is None:
     #         print("所有 differential 结果均为零。")
@@ -143,7 +151,7 @@ class Differential:
     #     # 4. 枚举 codomain basis
     #     codomain_exponents = enumerate_exponents(self, target_bigrade)
     #     if not codomain_exponents:
-    #         print("未找到符合 codomain bigrade 的基。")
+    #         print("未找到符合 codomain bidegree 的基。")
     #         return np.array([])
     #
     #     # 构造矩阵：行对应 codomain basis, 列对应 domain basis

@@ -42,7 +42,7 @@ class SpectralSequence:
 
     def get_ker_basis(self, bigrade) -> Matrix:
         """
-        Calculate the first page kernel basis at a given bigrade from stored relations
+        Calculate the first page kernel basis at a given bidegree from stored relations
         """
         if bigrade[1] < 0:
             return Matrix([])

@@ -14,7 +14,7 @@ class Module:
         self.page = page
 
         """
-        The basis and ker_basis here are represented in the standard basis associated with the bigrade.
+        The basis and ker_basis here are represented in the standard basis associated with the bidegree.
         """
         self.page = page
         self.bigrade = bigrade
@@ -44,7 +44,7 @@ class Module:
             return False
         if e.isZero():
             return True
-        return e.bigrade == self.bigrade
+        return e.bidegree == self.bigrade
 
     def classify(self, vec: Vector):
         if self.abs_dim == 0:

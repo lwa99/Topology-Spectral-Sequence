@@ -12,9 +12,10 @@ ss = SpectralSequence(
     [[1, 0],
      [-1, 1]]
 )
+
 # Note: [[1, 0],
 #       [-1, 1]]
-# means that the bigrade of d_n is
+# means that the bidegree of d_n is
 #       [[1,  0], *  [n  = [n
 #        [-1, 1]]     1] =  -n + 1]
 
@@ -29,4 +30,4 @@ print(m.abs_dim)
 print(m.dim)
 print(m.ker_basis)
 for j in range(m.sp_basis.cols):
-    print(HomoElem(m.page, abs_coordinate=m.sp_basis.col(j), abs_bigrade=m.bigrade))
+    print(HomoElem(m.page, abs_coordinate=m.sp_basis.col(j), abs_bideg=m.bidegree))
