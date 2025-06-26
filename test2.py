@@ -18,7 +18,7 @@ from utilities import Vector
 from seqsee_main import generate_html, compute_chart_dimensions, generate_css_styles
 
 
-def build_data_dict():
+def build_data_dict(x_min, x_max, y_min, y_max):
     # --- replicate Test.py setup ---
     a, t = symbols("a t")
     ss = SpectralSequence(
@@ -29,7 +29,7 @@ def build_data_dict():
          [-1, 1]]
     )
 
-    # impose relation a^2 = 0 and build through page 4
+    # impose relation a**2 = 0 and build through page 4
     ss.kill(a**2)
     ss.add_page({a: 0, t: 0})
     ss.add_page({a: 0, t: 0})
@@ -57,35 +57,46 @@ def build_data_dict():
     }
 
     # collect all surviving basis elements as nodes
-    for (x_deg, y_deg), module in p4.items():
-        for col in range(module.sp_basis.cols):
-            elem = HomoElem(
-                p4,
-                abs_coordinate=module.sp_basis.col(col),
-                abs_bideg= Vector(x_deg, y_deg)
-            )
-            node_id = f"n_{x_deg}_{y_deg}_{col}"
-            data["nodes"][node_id] = {
-                "x": int(x_deg),
-                "y": int(y_deg),
-                "label": f"${elem.poly.as_expr()}$",
-                # you can add styling attributes here, e.g.
-                # "attributes": [{"color": "h0", "size": 1.2}]
-            }
+    for x_deg in range(x_min, x_max + 1):
+        for y_deg in range(y_min, y_max + 1):
+            try:
+                module = p4[x_deg, y_deg]
+            except Exception:
+                continue
+            for col in range(module.sp_basis.cols):
+                elem = HomoElem(
+                    p4,
+                    abs_coordinate=module.sp_basis.col(col),
+                    abs_bideg=Vector(x_deg, y_deg)
+                )
+                node_id = f"n_{x_deg}_{y_deg}_{col}"
+                data["nodes"][node_id] = {
+                    "x": int(x_deg),
+                    "y": int(y_deg),
+                    "label": f"${elem.poly.as_expr()}$",
+                    # you can add styling attributes here, e.g.
+                    # "attributes": [{"color": "h0", "size": 1.2}]
+                }
 
     # (Optional) populate data["edges"] by inspecting ss.differentials or extensions
 
     return data
 
+
 def main():
-    if len(sys.argv) != 2:
+    if not (len(sys.argv) == 2 or len(sys.argv) == 6):
         print(sys.argv)
-        print("Usage: --- <output.html>")
+        print("Usage: python test2.py <output.html> [x_min x_max y_min y_max]")
         sys.exit(1)
     out_path = sys.argv[1]
 
+    if len(sys.argv) == 6:
+        x_min, x_max, y_min, y_max = map(int, sys.argv[2:6])
+    else:
+        x_min, x_max, y_min, y_max = 0, 5, 0, 5
+
     # Build the data dict
-    data = build_data_dict()
+    data = build_data_dict(x_min, x_max, y_min, y_max)
 
     # Prepare CSS defaults & compute chart dimensions
     generate_css_styles(data)            # fills in global_css
