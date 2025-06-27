@@ -3,18 +3,18 @@ from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from page import Page
-    from element import HomoElem, Bigrade
+    from element import HomoElem, Bidegree
 
 from utilities import Matrix, Vector
 
 
 class Module:
-    def __init__(self, page: Page, bigrade: Bigrade, basis: Matrix, ker_basis: Matrix):
+    def __init__(self, page: Page, bigrade: Bidegree, basis: Matrix, ker_basis: Matrix):
         # initialization should only be called by page.getModule
         self.page = page
 
         """
-        The basis and ker_basis here are represented in the standard basis associated with the bigrade.
+        The basis and ker_basis here are represented in the standard basis associated with the bidegree.
         """
         self.page = page
         self.bigrade = bigrade
@@ -32,23 +32,27 @@ class Module:
         return self.ker_basis.row_join(self.sp_basis)
 
     @property
-    def dim(self):
+    def abs_dim(self):
         return self.page.ss.get_abs_dimension(self.bigrade)
+
+    @property
+    def dim(self):
+        return len(self.sp_basis)
 
     def __contains__(self, e: HomoElem):
         if e.page != self.page:
             return False
         if e.isZero():
             return True
-        return e.bigrade == self.bigrade
+        return e.bidegree == self.bigrade
 
     def classify(self, vec: Vector):
-        if self.dim == 0:
+        if self.abs_dim == 0:
             if vec.is_zero_matrix:
                 return 0
             else:
                 return 2
-        assert len(vec) == self.dim
+        assert len(vec) == self.abs_dim
 
         indicator = self.basis_inv * vec
         i = len(indicator) - 1

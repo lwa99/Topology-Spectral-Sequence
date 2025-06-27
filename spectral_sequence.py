@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from element import Bigrade
+from element import Bidegree
 from page import Page
 from utilities import Matrix, Vector, convex_integral_combinations, Poly
 from sympy import Symbol
@@ -8,21 +8,21 @@ from collections.abc import Iterable
 
 
 class SpectralSequence:
-    def __init__(self, domain, gen: list[Symbol], generator_bigrades, diff_bideg_coef):
+    def __init__(self, domain, gen: list[Symbol], generator_bideg, diff_bideg_coef):
         self.gen = gen
-        generator_bigrades = Matrix(generator_bigrades)
+        generator_bideg = Matrix(generator_bideg)
 
-        assert len(gen) == generator_bigrades.cols
-        assert generator_bigrades.rows == 2
-        self.generator_bigrades = generator_bigrades
+        assert len(gen) == generator_bideg.cols
+        assert generator_bideg.rows == 2
+        self.generator_bigrades = generator_bideg
 
         self.domain = domain  # Base Field
 
         self.pages: list[Page | None] = [None]  # We used None to occupy the 0 index so that page num agrees with index
         self.relations: list[Poly] = []
 
-        # A dictionary that maps bigrades to exponents
-        self.absolute_bases: dict[Bigrade: tuple[tuple, ...]] = {}
+        # A dictionary that maps bidegree to exponents
+        self.absolute_bases: dict[Bidegree: tuple[tuple, ...]] = {}
 
         self.diff_bideg_coef = Matrix(diff_bideg_coef)
 
@@ -42,11 +42,16 @@ class SpectralSequence:
 
     def get_ker_basis(self, bigrade) -> Matrix:
         """
-        Calculate the first page kernel basis at a given bigrade from stored relations
+        Calculate the first page kernel basis at a given bidegree from stored relations
         """
+        if bigrade[1] < 0:
+            return Matrix([])
+
         res = []
         for relation_poly in self.relations:
             abs_bigrade, abs_coordinate = self.get_abs_info(relation_poly)
+            print(abs_bigrade)
+            print(bigrade)
             skewed_exps = convex_integral_combinations(self.generator_bigrades.row_join(abs_bigrade), bigrade)
             for s_exp in skewed_exps:
                 if s_exp[-1] == 0:
@@ -71,15 +76,15 @@ class SpectralSequence:
             self.absolute_bases[bigrade] = res
             return res
 
-    def get_abs_dimension(self, bigrade: Bigrade):
+    def get_abs_dimension(self, bigrade: Bidegree):
         if bigrade[1] < 0 or (bigrade[1] == 0 and bigrade[0] <= 0):
             return 0
         return len(self.get_abs_basis(bigrade))
 
-    def get_abs_bigrade(self, exponent: Iterable[int]) -> Bigrade:
-        return Bigrade(self.generator_bigrades * Matrix(exponent))
+    def get_abs_bigrade(self, exponent: Iterable[int]) -> Bidegree:
+        return Bidegree(self.generator_bigrades * Matrix(exponent))
 
-    def get_abs_info(self, poly: Poly) -> tuple[Bigrade, Vector]:
+    def get_abs_info(self, poly: Poly) -> tuple[Bidegree, Vector]:
         abs_bigrade = None
         abs_coordinate = None
         assert not poly.is_zero
