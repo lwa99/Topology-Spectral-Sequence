@@ -33,7 +33,7 @@ def build_data_dict(x_min, x_max, y_min, y_max):
     ss.kill(a**2)
     ss.add_page({a: 0, t: 0})
     ss.add_page({a: 0, t: 0})
-    ss.add_page({t: a})
+    ss.add_page({t: a, t**2: 0})
     p4 = ss.add_page()   # page 4
 
     # now assemble the JSON-style dict that main.generate_html expects
@@ -67,7 +67,7 @@ def build_data_dict(x_min, x_max, y_min, y_max):
                 elem = HomoElem(
                     p4,
                     abs_coordinate=module.sp_basis.col(col),
-                    abs_bideg=Vector(x_deg, y_deg)
+                    abs_bideg=Vector([[x_deg], [y_deg]])
                 )
                 node_id = f"n_{x_deg}_{y_deg}_{col}"
                 data["nodes"][node_id] = {
