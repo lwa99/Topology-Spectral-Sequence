@@ -1,24 +1,63 @@
+#!/usr/bin/env python3
 """
 convert_to_seqsee_html.py
 
 Builds your spectral sequence exactly as in Test.py, then calls
 main.generate_html(data) directly to emit the SVG+HTML output,
 without ever serializing to intermediate JSON.
+
+Now takes explicit chart bounds (min_x, max_x, min_y, max_y)
+and iterates over that grid, pulling out each module’s basis.
 """
 
 import sys
 from sympy.abc import symbols
 from sympy import GF
 from spectral_sequence import SpectralSequence
-from element import HomoElem
-from utilities import Vector
+from element import HomoElem, Bidegree
 
-# Import the rendering functions directly from main.py
-# (assumes convert_to_seqsee_html.py sits alongside main.py)
-from seqsee_main import generate_html, compute_chart_dimensions, generate_css_styles
+from seqsee_main import process_data
+
+SCHEMA = {
+  "$schema": "https://raw.githubusercontent.com/JoeyBF/SeqSee/refs/heads/master/seqsee/input_schema.json",
+  "header": {
+    "metadata": {
+      "htmltitle": "First few C-motivic stable stems",
+      "title": "First few $\\mathbb{C}$-motivic stable stems",
+      "authors": ["Joey Beauvais-Feisthauer", "Daniel C. Isaksen"]
+    },
+    "aliases": {
+      "attributes": {
+        "defaultNode": [ {"color": "gray"         } ],
+        "defaultEdge": [ {"color": "gray"         } ],
+        "tau1"       : [ {"color": "tau1color"    } ],
+        "tau1extn"   : [ {"color": "tau1extncolor"} ]
+      },
+      "colors": {
+        "gray"         : "#666"   ,
+        "tau1color"    : "#DD0000",
+        "tau1extncolor": "magenta"
+      }
+    }
+  },
+  "nodes": {
+    "1"   : {"x": 0, "y": 0, "label": "$1$ (0)"}                              ,
+    "h0"  : {"x": 0, "y": 1, "label": "$h_0$ (0)"}                            ,
+    "h0^2": {"x": 0, "y": 2, "label": "$h_0^2$ (0)"}                          ,
+    "h0^3": {"x": 0, "y": 3, "label": "$h_0^3$ (0)"}                          ,
+    "h1"  : {"x": 1, "y": 1, "label": "$h_1$ (1)"}                            ,
+    "h1^2": {"x": 2, "y": 2, "label": "$h_1^2$ (2)"}                          ,
+    "h2"  : {"x": 3, "y": 1, "label": "$h_2$ (2)"}                            ,
+    "h0h2": {"x": 3, "y": 2, "label": "$h_0 h_2$ (2)"}                        ,
+    "h1^3": {"x": 3, "y": 3, "label": "$h_1^3$ (3)"}                          ,
+    "h1^4": { "x": 4, "y": 4, "label": "$h_1^4$ (4)", "attributes": ["tau1"] }
+  },
+  "edges": [
+  ]
+}
 
 
-def build_data_dict():
+def build_data_dict(min_x, max_x, min_y, max_y):
     # --- replicate Test.py setup ---
     a, t = symbols("a t")
     ss = SpectralSequence(
@@ -28,76 +67,81 @@ def build_data_dict():
         [[1, 0],
          [-1, 1]]
     )
-
-    # impose relation a^2 = 0 and build through page 4
     ss.kill(a**2)
     ss.add_page({a: 0, t: 0})
     ss.add_page({a: 0, t: 0})
     ss.add_page({t: a})
     p4 = ss.add_page()   # page 4
 
-    # now assemble the JSON-style dict that main.generate_html expects
     data = {
-        "header": {
-            "metadata": {
-                "title": f"Page {p4.page_num} of your spectral sequence"
-            },
-            # leave chart bounds null so compute_chart_dimensions fills them in
-            "chart": {
-                "width":  {"min": None, "max": None},
-                "height": {"min": None, "max": None},
-                # scale, nodeSize, etc. will all be pulled from schema defaults
-                "scale": None
-            },
-            # you can also set aliases/color overrides here if you like
-            "aliases": {}
+      "$schema": "https://raw.githubusercontent.com/JoeyBF/SeqSee/refs/heads/master/seqsee/input_schema.json",
+      "header": {
+        "metadata": {
+          "htmltitle": "First few C-motivic stable stems",
+          "title": "First few $\\mathbb{C}$-motivic stable stems",
+          "authors": ["Joey Beauvais-Feisthauer", "Daniel C. Isaksen"]
         },
-        "nodes": {},
-        "edges": []
+        "aliases": {
+          "attributes": {
+            "defaultNode": [ {"color": "gray"         } ],
+            "defaultEdge": [ {"color": "gray"         } ],
+            "tau1"       : [ {"color": "tau1color"    } ],
+            "tau1extn"   : [ {"color": "tau1extncolor"} ]
+          },
+          "colors": {
+            "gray"         : "#666"   ,
+            "tau1color"    : "#DD0000",
+            "tau1extncolor": "magenta"
+          }
+        }
+      },
+      "nodes": {
+      },
+      "edges": [
+      ]
     }
 
-    # collect all surviving basis elements as nodes
-    for (x_deg, y_deg), module in p4.items():
-        for col in range(module.sp_basis.cols):
-            elem = HomoElem(
-                p4,
-                abs_coordinate=module.sp_basis.col(col),
-                abs_bideg= Vector(x_deg, y_deg)
-            )
-            node_id = f"n_{x_deg}_{y_deg}_{col}"
-            data["nodes"][node_id] = {
-                "x": int(x_deg),
-                "y": int(y_deg),
-                "label": f"${elem.poly.as_expr()}$",
-                # you can add styling attributes here, e.g.
-                # "attributes": [{"color": "h0", "size": 1.2}]
-            }
+    # Walk the given rectangle of bidegrees
+    for x in range(min_x, max_x + 1):
+        for y in range(min_y, max_y + 1):
+            try:
+                module = p4[x, y]
+            except KeyError:
+                # no module at this bidegree → skip
+                continue
 
-    # (Optional) populate data["edges"] by inspecting ss.differentials or extensions
+            for col in range(module.sp_basis.cols):
+                elem = HomoElem(
+                    p4,
+                    abs_coordinate=module.sp_basis.col(col),
+                    abs_bideg= Bidegree([x, y])
+                )
+                node_id = f"n_{x}_{y}_{col}"
 
+                from sympy import latex
+                data["nodes"][node_id] = {
+                    "x": x,
+                    "y": y,
+                    "label": f"${latex(elem.poly.as_expr())}$"
+                }
+    print(f"Debug: found {len(data['nodes'])} total nodes")
     return data
 
 def main():
-    if len(sys.argv) != 2:
-        print(sys.argv)
-        print("Usage: --- <output.html>")
+    global global_css
+
+    if len(sys.argv) != 6:
+        print("Usage: convert_to_seqsee_html.py <min_x> <max_x> <min_y> <max_y> <out.html>")
         sys.exit(1)
-    out_path = sys.argv[1]
 
-    # Build the data dict
-    data = build_data_dict()
+    min_x, max_x, min_y, max_y = map(int, sys.argv[1:5])
+    out_path = sys.argv[5]
 
-    # Prepare CSS defaults & compute chart dimensions
-    generate_css_styles(data)            # fills in global_css
-    compute_chart_dimensions(data)       # sets width/height bounds
+    data = build_data_dict(min_x, max_x, min_y, max_y)
+    process_data(data, out_path)
 
-    # Render the full HTML
-    html = generate_html(data)
+    print(f"Wrote {out_path} covering x ∈ [{min_x},{max_x}], y ∈ [{min_y},{max_y}]")
 
-    # Write it out
-    with open(out_path, "w") as f:
-        f.write(html)
-    print(f"Wrote {out_path}")
 
 if __name__ == "__main__":
     main()
