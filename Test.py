@@ -30,4 +30,4 @@ print(m.abs_dim)
 print(m.dim)
 print(m.ker_basis)
 for j in range(m.sp_basis.cols):
-    print(HomoElem(m.page, abs_coordinate=m.sp_basis.col(j), abs_bideg=m.bidegree))
+    print(HomoElem(m.page, abs_coordinate=m.sp_basis.col(j), abs_bideg=m.bidegree).poly.as_expr())
