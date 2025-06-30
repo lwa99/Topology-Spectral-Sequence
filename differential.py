@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from page import Page
 
-from utilities import Matrix
+from utilities import Matrix, convex_integral_combinations
 from element import HomoElem, Bidegree
 from sortedcontainers import SortedDict
 
@@ -24,6 +24,8 @@ class Differential:
 
         # Get all known elements with correct bidegree
         pre_basis = Matrix()
+        keys_to_combine = []
+        bideg_to_combine = []
         for e in self.knowledge.keys():
             if e.bidegree == bidegree:
                 pre_basis = pre_basis.row_join(e.coordinate)
@@ -32,6 +34,38 @@ class Differential:
                 # it should be equal to the starting bidegree added by the differential bidegree.
                 assert self.knowledge[e].bidegree is None or \
                        self.knowledge[e].bidegree == e.bidegree + self.d_bidegree
+
+            elif not e.isZero():
+                keys_to_combine.append(e)
+                bideg_to_combine.append(e.bidegree)
+
+        if len(bideg_to_combine) > 0 and bidegree != Bidegree([0, 0]):
+            combos = convex_integral_combinations(Matrix.hstack(*bideg_to_combine), bidegree)
+            # TODO: add a bound on exponents to utilize the torsion of elements (we don't care the case where the
+            #  computed element here is zero. Also, maybe we should move this step
+            for combo in combos:
+                print(keys_to_combine, bideg_to_combine, combo, "target", bidegree)
+                element = HomoElem(self.page, expr="1")
+                d_value = HomoElem(self.page, expr="0")
+                for i, exponent in enumerate(combo):
+                    cur_key = keys_to_combine[i]
+                    element *= cur_key ** exponent
+
+                    temp = HomoElem(self.page, exponent) * cur_key ** (exponent - 1) * self.knowledge[cur_key]
+                    for j, _exponent in enumerate(combo):
+                        if j != i:
+                            temp *= keys_to_combine[j] ** _exponent
+                    d_value += temp
+                if element.isZero():
+                    continue
+
+                print(f"Generated Differential: d({element}) = {d_value}")
+                self.knowledge[element] = d_value
+                pre_basis = pre_basis.row_join(element.coordinate)
+
+                assert d_value.bidegree is None or \
+                       d_value.bidegree == element.bidegree + self.d_bidegree, \
+                       str(d_value.bidegree) + str(element.bidegree) + str(self.d_bidegree)
 
         # Expand pre_basis to a basis of the starting module
         module = self.page.get_module(bidegree)
@@ -46,13 +80,13 @@ class Differential:
             target_dim = self.page[target_bidegree].dim
 
         if target_dim > 0:
-            res = Matrix([[]]*target_dim)
+            res = Matrix([[]] * target_dim)
 
             for i in pivots_1:
                 elem = HomoElem(self.page, abs_bideg=bidegree, abs_coordinate=pre_basis.col(i))
                 target = self.knowledge[elem]
                 if target.isZero():
-                    a = Matrix([0]*target_dim)
+                    a = Matrix([0] * target_dim)
                     res = res.row_join(a)
                 else:
                     res = res.row_join(target.coordinate)
@@ -71,7 +105,7 @@ class Differential:
 
                 target = HomoElem(self.page, expr=expr)
                 if target.isZero():
-                    a = Matrix([0]*target_dim)
+                    a = Matrix([0] * target_dim)
                     res = res.row_join(a)
                 else:
                     res = res.row_join(target.coordinate)
