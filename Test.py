@@ -24,7 +24,7 @@ p_1 = ss.add_page({a: 0, t: 0})
 p_2 = ss.add_page({a: 0, t: 0})
 p_3 = ss.add_page({t: a})
 p_4 = ss.add_page()
-m = p_4[0, 6]
+m = p_4[0, 4]
 
 print(m.abs_dim)
 print(m.dim)
