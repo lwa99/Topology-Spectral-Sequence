@@ -9,7 +9,7 @@ from utilities import Matrix, Vector
 
 
 class Module:
-    def __init__(self, page: Page, bigrade: Bidegree, basis: Matrix, ker_basis: Matrix):
+    def __init__(self, page: Page, bidegree: Bidegree, basis: Matrix, ker_basis: Matrix):
         # initialization should only be called by page.getModule
         self.page = page
 
@@ -17,7 +17,7 @@ class Module:
         The basis and ker_basis here are represented in the standard basis associated with the bidegree.
         """
         self.page = page
-        self.bigrade = bigrade
+        self.bidegree = bidegree
 
         ker_basis_idx, sp_basis_idx, self.basis_inv = Matrix.multi_reduction(ker_basis, basis)
 
@@ -33,7 +33,7 @@ class Module:
 
     @property
     def abs_dim(self):
-        return self.page.ss.get_abs_dimension(self.bigrade)
+        return self.page.ss.get_abs_dimension(self.bidegree)
 
     @property
     def dim(self):
@@ -44,7 +44,7 @@ class Module:
             return False
         if e.isZero():
             return True
-        return e.bidegree == self.bigrade
+        return e.bidegree == self.bidegree
 
     def classify(self, vec: Vector):
         if self.abs_dim == 0:

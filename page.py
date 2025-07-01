@@ -37,8 +37,6 @@ class Page:
         prev_page = self.ss.pages[self.page_num - 1]
         # 计算 prev 的 bidegree
         prev_bigrade = bigrade - prev_page.d.d_bidegree  # 直接用向量减法
-        if self.page_num == 4:
-            print("??", bigrade, prev_page.d.d_bidegree, prev_bigrade)
 
         # 获取 A1 和 A2
         matrix_prev = prev_page.d.get_matrix(prev_bigrade, debug=self.page_num == 4)  # A1: M0 -> M1 的映射矩阵

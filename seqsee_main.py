@@ -1,5 +1,6 @@
 """
-https://github.com/JoeyBF/SeqSee/tree/master
+This file and the files tamplate.html.jinja, input_schema.json in this directory are copied from the Seqsee project.
+https://github.com/JoeyBF/SeqSee/blob/master/LICENSE
 
 MIT License
 
@@ -24,101 +25,585 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 """
 
+import copy
+import json
+import jsonschema
+import math
 import sys
+import os
+from collections import defaultdict
+from jsonschema.exceptions import ValidationError
 from jinja2 import Environment, FileSystemLoader
 
-# Scale (pixels per unit)
+# The distance between successive x or y coordinates. Units are in pixels. This will be fixed
+# throughout the html file, but zooming is implemented through a transformation matrix applied to
+# the <g> element that contains the nodes, edges, and background grid.
 scale = None
 
 
+# Lifted/adapted from MIT-licensed https://github.com/slacy/pyssed/
 class CssStyle:
-    """A simple CSS style container."""
+    """A list of CSS styles, but stored as a dict.
+    Can contain nested styles."""
+
     def __init__(self, *args, **kwargs):
         self._styles = {}
         for a in args:
             self.append(a)
+
         for name, value in kwargs.items():
             self._styles[name] = value
 
+    def __getitem__(self, key):
+        return self._styles[key]
+
+    def keys(self):
+        """Return keys of the style dict."""
+        return self._styles.keys()
+
+    def items(self):
+        """Return iterable contents."""
+        return self._styles.items()
+
     def append(self, other):
-        if isinstance(other, dict):
-            self._styles.update(other)
+        """Append style 'other' to self."""
+        self._styles = self.__add__(other)._styles
+
+    def __add__(self, other):
+        """Add self and other, and return a new style instance."""
+        summed = copy.deepcopy(self)
+        if isinstance(other, str):
+            single = other.split(":")
+            summed._styles[single[0]] = single[1]
+        elif isinstance(other, dict):
+            summed._styles.update(other)
         elif isinstance(other, CssStyle):
-            self._styles.update(other._styles)
+            summed._styles.update(other._styles)
+        else:
+            raise "Bad type for style"
+        return summed
 
-    def generate(self):
-        lines = []
-        for selector, props in self._styles.items():
-            lines.append(f"{selector} {{")
-            for k, v in props.items():
-                lines.append(f"  {k}: {v};")
-            lines.append("}\n")
-        return "\n".join(lines)
+    def __repr__(self):
+        return str(self._styles)
 
-# Global CSS accumulator
+    def generate(self, parent="", indent=4):
+        """Given a dict mapping CSS selectors to a dict of styles, generate a
+        list of lines of CSS output."""
+        subnodes = []
+        stylenodes = []
+        result = []
+
+        for name, value in self.items():
+            # If the sub node is a sub-style...
+            if isinstance(value, dict):
+                subnodes.append((name, CssStyle(value)))
+            elif isinstance(value, CssStyle):
+                subnodes.append((name, value))
+            # Else, it's a string, and thus, a single style element
+            elif (
+                isinstance(value, str)
+                or isinstance(value, int)
+                or isinstance(value, float)
+            ):
+                stylenodes.append((name, value))
+            else:
+                raise "Bad error"
+
+        if stylenodes:
+            result.append(parent.strip() + " {")
+            for stylenode in stylenodes:
+                attribute = stylenode[0].strip(" ;:")
+                if isinstance(stylenode[1], str):
+                    # string
+                    value = stylenode[1].strip(" ;:")
+                else:
+                    # everything else (int or float, likely)
+                    value = str(stylenode[1]) + "px"
+
+                result.append(" " * indent + "%s: %s;" % (attribute, value))
+
+            result.append("}")
+            result.append("")  # a newline
+
+        for subnode in subnodes:
+            result += subnode[1].generate(
+                parent=(parent.strip() + " " + subnode[0]).strip()
+            )
+
+        if parent == "":
+            ret = "\n".join(result)
+        else:
+            ret = result
+
+        return ret
+
+
 global_css = CssStyle()
 
+
+def load_schema():
+    schema_path = os.path.join(os.path.dirname(__file__), "input_schema.json")
+    with open(schema_path, "r") as f:
+        schema = json.load(f)
+    return schema
+
+
+schema = load_schema()
+
+
 def load_template():
-    env = Environment(loader=FileSystemLoader(searchpath=sys.path[0]))
-    return env.get_template("template.html.jinja")
+    env = Environment(loader=FileSystemLoader(searchpath=os.path.dirname(__file__)))
+    template = env.get_template("template.html.jinja")
+    return template
 
 
-def generate_css_styles(data):
-    """Populate CSS classes from data["aliases"]."""
-    global global_css
-    global_css = CssStyle()
-    for name, attrs in data.get("aliases", {}).items():
-        selector = f".{name}"
-        global_css._styles[selector] = attrs
+def get_schema_default(data, path):
+    """
+    Get the default value from the schema at the given path.
+
+    This is useful for when we need to know the default value of a field in the schema, but the field
+    is not present in the data.
+    """
+
+    default_value = schema
+    for key in path:
+        default_value = default_value["properties"][key]
+    return default_value["default"]
+
+
+def get_value_or_schema_default(data, path):
+    """
+    Attempt to get a value from `data` at the given path.
+
+    If it is not specified, get the default value from the schema. The schema is always assumed to
+    contain a default value for the given path.
+    """
+
+    try:
+        current_value = data
+        for key in path:
+            current_value = current_value[key]
+        return current_value
+    except KeyError:
+        return get_schema_default(data, path)
+
+
+def cssify_name(name):
+    """
+    Get a CSS-safe identifier from a name.
+
+    This is more complicated than just adding a period. This is because aliases can start with
+    numbers, but CSS classes cannot.
+    """
+    if name.isnumeric():
+        name = "n" + name
+    return "." + name
+
+
+def style_and_aliases_from_attributes(attributes):
+    """
+    Given a list of attributes, return a `CssStyle` object that contains the union of all raw
+    attribute objects, and a list of aliases.
+
+    We return the aliases separately because we may want to specify them in a `class` attribute
+    instead of a `style` attribute.
+    """
+
+    new_style = CssStyle()
+    aliases = []
+    for attr in attributes:
+        if isinstance(attr, dict):
+            # This is a raw attribute object
+            for key, value in attr.items():
+                if key == "color":
+                    if (value_key := cssify_name(value)) in global_css.keys():
+                        # This is a color alias
+                        new_style += global_css[value_key]
+                    else:
+                        # This is a CSS color value
+                        new_style += {"fill": value, "stroke": value}
+                elif key == "size":
+                    new_style += {"r": scale * float(value)}
+                elif key == "thickness":
+                    new_style += {"stroke-width": scale * float(value)}
+                elif key == "arrowTip":
+                    if value == "none":
+                        new_style += {"marker-end": "none"}
+                    else:
+                        # We only support a few hardcoded arrow tips. To define a new arrow tip
+                        # `foo`, you need to define a `<marker>` element with id `arrow-foo` in the
+                        # template file. See the `arrow-simple` marker for an example.
+                        new_style += {"marker-end": f"url(#arrow-{value})"}
+                elif key == "pattern":
+                    # We only support a few hardcoded patterns
+                    if value == "solid":
+                        new_style += {"stroke-dasharray": "none"}
+                    elif value == "dashed":
+                        new_style += {"stroke-dasharray": "5, 5"}
+                    elif value == "dotted":
+                        new_style += {
+                            "stroke-dasharray": "0, 2",
+                            "stroke-linecap": "round",
+                        }
+                    # Other values impossible due to schema
+                else:
+                    # Just treat the key-value pair as raw CSS
+                    new_style += {key: value}
+        elif isinstance(attr, str):
+            # This is a style alias
+            aliases.append(cssify_name(attr).removeprefix("."))
+    return (new_style, aliases)
+
+
+def generate_style(style, aliases):
+    """Collapse a list of styles and aliases into a single `CssStyle` object."""
+    style = copy.deepcopy(style)
+    for alias in aliases:
+        style.append(global_css[cssify_name(alias)])
+    return style
+
+
+def ensure_json_path_is_defined(data, path):
+    """
+    Ensure that the path exists in the JSON data, creating it if necessary.
+
+    This modifies `data` in-place. If the path doesn't already exist, we create a JSON object, which
+    is equivalent to a Python `dict`.
+    """
+
+    current_value = data
+    for key in path:
+        if key not in current_value:
+            current_value[key] = {}
+        current_value = current_value[key]
 
 
 def compute_chart_dimensions(data):
-    """Automatically fill width/height in header.chart."""
+    """
+    This modifies `data` in-place to set up the `header.chart.width` and `header.chart.height`
+    objects. Namely, it replaces the `null` values by autodetected boundaries.
+
+    The bounds on the width and height are calculated based on the positions of the nodes in the
+    chart. For maximum values, we give the smallest even size that makes the last column/row empty.
+    We do the opposite for minimum values. Defaults to a 2x2 first quadrant grid if there are no
+    nodes.
+    """
+
     nodes = data.get("nodes", {})
-    xs = [node["x"] for node in nodes.values()]
-    ys = [node["y"] for node in nodes.values()]
-    w_min, w_max = (min(xs), max(xs)) if xs else (0, 2)
-    h_min, h_max = (min(ys), max(ys)) if ys else (0, 2)
-    data["header"]["chart"]["width"] = {"min": w_min, "max": w_max}
-    data["header"]["chart"]["height"] = {"min": h_min, "max": h_max}
+
+    def compute_dimension_bounds(dim_name, coord_name, default):
+        ensure_json_path_is_defined(data, ["header", "chart", dim_name])
+        if data["header"]["chart"][dim_name].get("min") is None:
+            # Greatest even number strictly smaller than the minimum coordinate of any node
+            dimension = 2 * (
+                min((node[coord_name] for node in nodes.values()), default=default) // 2
+                - 1
+            )
+            data["header"]["chart"][dim_name]["min"] = dimension
+        if data["header"]["chart"][dim_name].get("max") is None:
+            # Smallest even number strictly greater than the maximum coordinate of any node
+            dimension = 2 * (
+                max((node[coord_name] for node in nodes.values()), default=default) // 2
+                + 1
+            )
+            data["header"]["chart"][dim_name]["max"] = dimension
+
+    # Arbitrary default values. These are only used if there are no nodes.
+    compute_dimension_bounds("width", "x", 0)
+    compute_dimension_bounds("height", "y", 0)
 
 
 def calculate_absolute_positions(data):
-    """Compute absoluteX/absoluteY for each node."""
-    nodes = data.get("nodes", {})
-    for node_id, node in nodes.items():
-        node["absoluteX"] = node["x"]
-        node["absoluteY"] = node["y"]
+    """
+    Compute the final positions of the nodes in the chart.
+
+    This modifies `data` in-place to add attributes `absoluteX` and `absoluteY`. They will be used
+    by the SVG generation code to place the nodes at the correct positions and to draw the edges.
+    """
+
+    nodes_by_bidegree = defaultdict(list)
+
+    # Group nodes by bidegree
+    for node_id, node in data.get("nodes", {}).items():
+        x, y = node["x"], node["y"]
+        nodes_by_bidegree[x, y].append(node_id)
+
+    # Sort bidegrees by the `position` attribute of the nodes
+    default_position = schema["properties"]["nodes"]["additionalProperties"][
+        "properties"
+    ]["position"]["default"]
+    for bidegree, nodes in nodes_by_bidegree.items():
+        nodes_by_bidegree[bidegree] = sorted(
+            nodes,
+            key=lambda node_id: data["nodes"][node_id].get(
+                "position", default_position
+            ),
+        )
+
+    # Get defaults and compute constants
+    node_size = get_value_or_schema_default(data, ["header", "chart", "nodeSize"])
+    node_spacing = get_value_or_schema_default(data, ["header", "chart", "nodeSpacing"])
+    node_slope = get_value_or_schema_default(data, ["header", "chart", "nodeSlope"])
+
+    distance_between_centers = node_spacing + 2 * node_size
+
+    # Calculate the angle of the line that the nodes will be placed on
+    if node_slope is not None:
+        theta = math.atan(node_slope)
+    else:
+        # null means vertical
+        theta = math.pi / 2
+
+    # Calculate absolute positions
+    for (x, y), nodes in nodes_by_bidegree.items():
+        bidegree_rank = len(nodes)
+        first_center_to_last_center = (bidegree_rank - 1) * distance_between_centers
+        for i, node_id in enumerate(nodes):
+            offset = -first_center_to_last_center / 2 + i * distance_between_centers
+            data["nodes"][node_id]["absoluteX"] = x + offset * math.cos(theta)
+            data["nodes"][node_id]["absoluteY"] = y + offset * math.sin(theta)
 
 
 def generate_nodes_svg(data):
-    svg = ['<g id="nodes">']
-    for nid, node in data.get("nodes", {}).items():
+    """Generate an SVG <g> element containing all nodes."""
+
+    nodes_svg = '<g id="nodes-group">\n'
+
+    for node_id, node in data.get("nodes", {}).items():
         cx = node["absoluteX"] * scale
         cy = node["absoluteY"] * scale
-        style = ''
-        svg.append(f'<circle id="{nid}" cx="{cx}" cy="{cy}" r="{scale}" {style}/>' )
-    svg.append('</g>')
-    return "\n".join(svg)
+
+        attributes = node.get("attributes", [])
+        style, aliases = style_and_aliases_from_attributes(attributes)
+        style = style.generate(indent=0).replace("\n", " ").strip(" {}")
+        if style:
+            style = f'style="{style}"'
+        aliases = " ".join(aliases)
+
+        label = node.get("label", "")
+
+        nodes_svg += f'<circle id="{node_id}" class="defaultNode {aliases}" cx="{cx}" cy="{cy}" {style} data-label="{label}"></circle>\n'
+
+    nodes_svg += "</g>\n"
+    return nodes_svg
 
 
 def generate_edges_svg(data):
-    svg = ['<g id="edges">']
-    # No edges by default
-    svg.append('</g>')
-    return "\n".join(svg)
+    """Generate an SVG <g> element containing all edges."""
+
+    edges_svg = '<g id="edges-group">\n'
+
+    for edge in data.get("edges", []):
+        source = data["nodes"][edge["source"]]
+        if "target" in edge:
+            target = data["nodes"][edge["target"]]
+            target_x = target["absoluteX"] * scale
+            target_y = target["absoluteY"] * scale
+        elif "offset" in edge:
+            target_x = (source["absoluteX"] + edge["offset"]["x"]) * scale
+            target_y = (source["absoluteY"] + edge["offset"]["y"]) * scale
+        else:
+            # Impossible due to schema
+            raise NotImplementedError
+
+        x1 = source["absoluteX"] * scale
+        y1 = source["absoluteY"] * scale
+
+        attributes = edge.get("attributes", [])
+        style, aliases = style_and_aliases_from_attributes(attributes)
+        style = style.generate(indent=0).replace("\n", " ").strip(" {}")
+        aliases = " ".join(aliases)
+
+        if edge.get("bezier"):
+            control_points = edge["bezier"]
+            if len(control_points) == 1:
+                control_x = control_points[0]["x"] * scale + x1
+                control_y = control_points[0]["y"] * scale + y1
+                curve_d = f"Q {control_x} {control_y} {target_x} {target_y}"
+            elif len(control_points) == 2:
+                control0_x = control_points[0]["x"] * scale + x1
+                control0_y = control_points[0]["y"] * scale + y1
+                control1_x = control_points[1]["x"] * scale + target_x
+                control1_y = control_points[1]["y"] * scale + target_y
+                curve_d = f"C {control0_x} {control0_y} {control1_x} {control1_y} {target_x} {target_y}"
+            else:
+                # Impossible due to schema
+                raise NotImplementedError
+            edge_svg = f'<path d="M {x1} {y1} {curve_d}" class="{aliases}" style="fill: none;{style}"></path>\n'
+        else:
+            edge_svg = f'<line x1="{x1}" y1="{y1}" x2="{target_x}" y2="{target_y}" class="defaultEdge {aliases}" style="{style}"></line>\n'
+
+        # Remove empty style attribute for cleaner output. This is not strictly necessary, but it
+        # makes me feel better.
+        edges_svg += edge_svg.replace(' style=""', "")
+
+    edges_svg += "</g>\n"
+    return edges_svg
 
 
 def generate_svg(data):
+    # First make sure that the absolute positions are calculated
     calculate_absolute_positions(data)
+    # We generate nodes after edges so that they are drawn on top
     return generate_edges_svg(data) + generate_nodes_svg(data)
 
 
 def generate_html(data):
-    global scale
-    scale = data.get("header", {}).get("chart", {}).get("scale", 50)
+    # Generate CSS styles to be placed in <head>
     generate_css_styles(data)
+    # Calculate chart dimensions
     compute_chart_dimensions(data)
-    svg_content = generate_svg(data)
+    # Generate SVG content
+    static_svg_content = generate_svg(data)
+
     template = load_template()
-    return template.render(data=data, css_styles=global_css.generate(), svg_content=svg_content)
+    html_output = template.render(
+        data=data,
+        spacing=scale,
+        css_styles=global_css.generate(),
+        static_svg_content=static_svg_content,
+    )
+    return html_output
+
+
+def set_scale(data):
+    global scale
+    scale = get_value_or_schema_default(data, ["header", "chart", "scale"])
+
+
+def generate_css_styles(data):
+    """Populate the global_css variable with CSS classes for color and attribute aliases."""
+    global global_css
+    aliases_path = ["header", "aliases"]
+
+    colors_path = aliases_path + ["colors"]
+    color_aliases = {
+        "backgroundColor": get_schema_default(data, colors_path + ["backgroundColor"]),
+        "textColor": get_schema_default(data, colors_path + ["textColor"]),
+        "borderColor": get_schema_default(data, colors_path + ["borderColor"]),
+    }
+    color_aliases.update(get_value_or_schema_default(data, colors_path))
+
+    attributes_path = aliases_path + ["attributes"]
+    attribute_aliases = {
+        "grid": get_schema_default(data, attributes_path + ["grid"]),
+        "defaultNode": get_schema_default(data, attributes_path + ["defaultNode"]),
+        "defaultEdge": get_schema_default(data, attributes_path + ["defaultEdge"]),
+    }
+    user_attribute_aliases = get_value_or_schema_default(data, attributes_path)
+
+    # Merge user-defined attribute aliases with the defaults
+    for alias_name, attributes_list in user_attribute_aliases.items():
+        current_attributes = attribute_aliases.get(alias_name, [])
+        # This creates a new list instead of modifying the existing one, which would be bad. This is
+        # because it could mutate a default value, which would ultimately corrupt `schema`.
+        attribute_aliases[alias_name] = current_attributes + attributes_list
+
+    # Generate CSS classes for color aliases. We do it first because we may need to reference them
+    # in the attribute aliases.
+    for color_name, color_value in color_aliases.items():
+        global_css += {
+            cssify_name(color_name): {"fill": color_value, "stroke": color_value}
+        }
+
+    # Apply special colors to global CSS
+    global_css += {
+        ".backgroundStyle": {
+            "background-color": color_aliases["backgroundColor"],
+            "fill": color_aliases["backgroundColor"],
+        },
+        "#tooltip": {
+            "color": color_aliases["textColor"],
+            "border-color": color_aliases["borderColor"],
+        },
+        ".axis": {
+            "stroke": color_aliases["borderColor"],
+            "stroke-width": "2px",
+        },
+        ".tick text, .katex": {
+            "color": color_aliases["textColor"],
+            "fill": "currentColor",
+        },
+    }
+
+    # Generate CSS class for nodes to set the appropriate size
+    node_size = get_value_or_schema_default(data, ["header", "chart", "nodeSize"])
+    global_css += {"circle": {"stroke-width": 0, "r": scale * node_size}}
+
+    # Generate CSS classes for attribute aliases
+    for alias_name, attributes_list in attribute_aliases.items():
+        style, aliases = style_and_aliases_from_attributes(attributes_list)
+        global_css += {cssify_name(alias_name): generate_style(style, aliases)}
+
+
+def process_json(input_file, output_file):
+    global global_css
+
+    # Load input JSON
+    with open(input_file, "r") as f:
+        data = json.load(f)
+
+    # validate against schema
+    try:
+        jsonschema.validate(instance=data, schema=schema)
+    except ValidationError as e:
+        print("Input JSON validation error:")
+        print(e)
+        sys.exit(1)
+
+    global scale
+    scale = get_value_or_schema_default(data, ["header", "chart", "scale"])
+
+    # Generate HTML
+    html_content = generate_html(data)
+
+    # Write to output file
+    with open(output_file, "w") as f:
+        f.write(html_content)
+
+    print(f"Generated {output_file} successfully.")
+
+    # Reset global_css for the next file
+    global_css = CssStyle()
+
+
+def process_data(data, output_file):
+    global global_css
+
+    # validate against schema
+    try:
+        jsonschema.validate(instance=data, schema=schema)
+    except ValidationError as e:
+        print("Input JSON validation error:")
+        print(e)
+        sys.exit(1)
+
+    global scale
+    scale = get_value_or_schema_default(data, ["header", "chart", "scale"])
+
+    # Generate HTML
+    html_content = generate_html(data)
+
+    # Write to output file
+    with open(output_file, "w") as f:
+        f.write(html_content)
+
+    print(f"Generated {output_file} successfully.")
+
+    # Reset global_css for the next file
+    global_css = CssStyle()
+
+
+def main():
+    if len(sys.argv) != 3:
+        print("Usage: seqsee <input.json> <output.html>")
+        sys.exit(1)
+
+    input_file = sys.argv[1]
+    output_file = sys.argv[2]
+
+    process_json(input_file, output_file)
+
+
+if __name__ == "__main__":
+    main()
