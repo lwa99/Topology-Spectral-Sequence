@@ -50,8 +50,6 @@ class SpectralSequence:
         res = []
         for relation_poly in self.relations:
             abs_bigrade, abs_coordinate = self.get_abs_info(relation_poly)
-            print(abs_bigrade)
-            print(bigrade)
             skewed_exps = convex_integral_combinations(self.generator_bigrades.row_join(abs_bigrade), bigrade)
             for s_exp in skewed_exps:
                 if s_exp[-1] == 0:

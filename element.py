@@ -46,10 +46,10 @@ class HomoElem:
             assert abs_coordinate is None
             assert expr is not None
             poly = Poly(expr, *ss.gen, domain=ss.domain)
-            if poly.is_zero:
+            if poly.total_degree() <= 0:
                 self.bidegree: Bidegree | None = None
                 self.coordinate: Vector | None = None
-                self.poly = ss.domain(0)
+                self.poly = poly
                 return
             abs_bideg, abs_coordinate = ss.get_abs_info(poly)
 
@@ -65,7 +65,7 @@ class HomoElem:
         else:
             self.bidegree: Bidegree | None = None
             self.coordinate: Vector | None = None
-            self.poly = ss.domain(0)
+            self.poly = Poly(0, *ss.gen, domain=ss.domain)
             return
 
         # Step 3: Reconstruct Polynomial in the case that we have a non-trivial element.
@@ -96,6 +96,14 @@ class HomoElem:
 
     def __eq__(self, other):
         return (self - other).isZero
+
+    def __pow__(self, power, modulo=None):
+        if power == 0:
+            return HomoElem(self.page, expr="1")
+        res = HomoElem(self.page, self.poly)
+        for _ in range(power - 1):
+            res *= HomoElem(self.page, self.poly)
+        return res
 
     def __hash__(self):
         if self.isZero():
