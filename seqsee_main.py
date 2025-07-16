@@ -189,6 +189,22 @@ def get_schema_default(data, path):
     return default_value["default"]
 
 
+
+
+def get_schema_default(data, path):
+    """
+    Get the default value from the schema at the given path.
+
+    This is useful for when we need to know the default value of a field in the schema, but the field
+    is not present in the data.
+    """
+
+    default_value = schema
+    for key in path:
+        default_value = default_value["properties"][key]
+    return default_value["default"]
+
+
 def get_value_or_schema_default(data, path):
     """
     Attempt to get a value from `data` at the given path.
@@ -204,6 +220,96 @@ def get_value_or_schema_default(data, path):
         return current_value
     except KeyError:
         return get_schema_default(data, path)
+
+
+def cssify_name(name):
+    """
+    Get a CSS-safe identifier from a name.
+
+    This is more complicated than just adding a period. This is because aliases can start with
+    numbers, but CSS classes cannot.
+    """
+    if name.isnumeric():
+        name = "n" + name
+    return "." + name
+
+
+def style_and_aliases_from_attributes(attributes):
+    """
+    Given a list of attributes, return a `CssStyle` object that contains the union of all raw
+    attribute objects, and a list of aliases.
+
+    We return the aliases separately because we may want to specify them in a `class` attribute
+    instead of a `style` attribute.
+    """
+
+    new_style = CssStyle()
+    aliases = []
+    for attr in attributes:
+        if isinstance(attr, dict):
+            # This is a raw attribute object
+            for key, value in attr.items():
+                if key == "color":
+                    if (value_key := cssify_name(value)) in global_css.keys():
+                        # This is a color alias
+                        new_style += global_css[value_key]
+                    else:
+                        # This is a CSS color value
+                        new_style += {"fill": value, "stroke": value}
+                elif key == "size":
+                    new_style += {"r": scale * float(value)}
+                elif key == "thickness":
+                    new_style += {"stroke-width": scale * float(value)}
+                elif key == "arrowTip":
+                    if value == "none":
+                        new_style += {"marker-end": "none"}
+                    else:
+                        # We only support a few hardcoded arrow tips. To define a new arrow tip
+                        # `foo`, you need to define a `<marker>` element with id `arrow-foo` in the
+                        # template file. See the `arrow-simple` marker for an example.
+                        new_style += {"marker-end": f"url(#arrow-{value})"}
+                elif key == "pattern":
+                    # We only support a few hardcoded patterns
+                    if value == "solid":
+                        new_style += {"stroke-dasharray": "none"}
+                    elif value == "dashed":
+                        new_style += {"stroke-dasharray": "5, 5"}
+                    elif value == "dotted":
+                        new_style += {
+                            "stroke-dasharray": "0, 2",
+                            "stroke-linecap": "round",
+                        }
+                    # Other values impossible due to schema
+                else:
+                    # Just treat the key-value pair as raw CSS
+                    new_style += {key: value}
+        elif isinstance(attr, str):
+            # This is a style alias
+            aliases.append(cssify_name(attr).removeprefix("."))
+    return (new_style, aliases)
+
+
+def generate_style(style, aliases):
+    """Collapse a list of styles and aliases into a single `CssStyle` object."""
+    style = copy.deepcopy(style)
+    for alias in aliases:
+        style.append(global_css[cssify_name(alias)])
+    return style
+
+
+def ensure_json_path_is_defined(data, path):
+    """
+    Ensure that the path exists in the JSON data, creating it if necessary.
+
+    This modifies `data` in-place. If the path doesn't already exist, we create a JSON object, which
+    is equivalent to a Python `dict`.
+    """
+
+    current_value = data
+    for key in path:
+        if key not in current_value:
+            current_value[key] = {}
+        current_value = current_value[key]
 
 
 def cssify_name(name):

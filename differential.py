@@ -30,6 +30,14 @@ class Differential:
         if target_dim == 0:
             return Matrix([[0] * self.page.ss.get_abs_dimension(bidegree)])
 
+        target_bidegree = bidegree + self.d_bidegree
+        if self.page.ss.get_abs_dimension(target_bidegree) == 0:
+            return Matrix([[0] * self.page.ss.get_abs_dimension(bidegree)])
+
+        target_dim = self.page[target_bidegree].dim
+        if target_dim == 0:
+            return Matrix([[0] * self.page.ss.get_abs_dimension(bidegree)])
+
         # Get all known elements with correct bidegree
         pre_basis = Matrix()
         keys_to_combine = []
