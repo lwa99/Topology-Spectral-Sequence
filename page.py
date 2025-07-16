@@ -39,7 +39,7 @@ class Page:
         prev_bigrade = bigrade - prev_page.d.d_bidegree  # 直接用向量减法
 
         # 获取 A1 和 A2
-        matrix_prev = prev_page.d.get_matrix(prev_bigrade, debug=self.page_num == 4)  # A1: M0 -> M1 的映射矩阵
+        matrix_prev = prev_page.d.get_matrix(prev_bigrade)  # A1: M0 -> M1 的映射矩阵
         matrix_next = prev_page.d.get_matrix(bigrade)  # A2: M1 -> M_next 的映射矩阵
 
         # 计算 A2 的核（解 Ax=0）
