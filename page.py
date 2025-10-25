@@ -15,8 +15,8 @@ class Page:
     def __init__(self, ss, page_num, io_pairs: dict, d_bigrade):
         self.ss: SpectralSequence = ss
         self.page_num = page_num
-        self.subspaces = SortedDict([])
-        self.d = Differential(self, io_pairs, d_bigrade)
+        self.modules = SortedDict([])
+        self.d = Differential(self, io_pairs, Bidegree(d_bigrade))
 
     def get_module(self, bigrade: Bidegree):
         if bigrade in self.modules:
@@ -35,18 +35,22 @@ class Page:
                           )
 
         prev_page = self.ss.pages[self.page_num - 1]
-        # 计算 prev 的 bidegree
-        prev_bigrade = bigrade - prev_page.d.d_bidegree  # 直接用向量减法
+        prev_bigrade = bigrade - prev_page.d.d_bidegree # bidegree of the incoming module.
+        matrix_in = prev_page.d.get_matrix(prev_bigrade)  # A1: M0 -> M1 的映射矩阵
+        matrix_out = prev_page.d.get_matrix(bigrade)  # A2: M1 -> M_next 的映射矩阵
 
-        # 获取 A1 和 A2
-        matrix_prev = prev_page.d.get_matrix(prev_bigrade)  # A1: M0 -> M1 的映射矩阵
-        matrix_next = prev_page.d.get_matrix(bigrade)  # A2: M1 -> M_next 的映射矩阵
+        # Z case:
+        # Firstly, we need to get the matrices of the incoming and outgoing maps. Then, we compute the kernel (using
+        # a generating set) and image (easy)
+        if self.ss.Z_case:
+            # We need to calculate the kernel
+            pass
 
-        # 计算 A2 的核（解 Ax=0）
-        kernel_next = matrix_next.nullspace()
+            # The image is the column space
 
-        # 计算 A1 的像（列空间）
-        image_prev = matrix_prev.columnspace()
+        # Field case
+        kernel_next = matrix_out.nullspace()
+        image_prev = matrix_in.columnspace()
 
         return Module(self, bigrade,
                       Matrix.hstack(*kernel_next),

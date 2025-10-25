@@ -75,7 +75,7 @@ class HomoElem:
 
             # build the polynomial from coordinate
             poly_dict = {}
-            actual_basis = ss.get_abs_basis(abs_bideg)
+            actual_basis = ss.get_abs_genset(abs_bideg)
             for i, exponent in enumerate(actual_basis):
                 poly_dict[exponent] = abs_coordinate[i]
             self.poly = Poly.from_dict(poly_dict, *ss.gen, domain=ss.domain)
