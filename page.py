@@ -5,7 +5,6 @@ if TYPE_CHECKING:
     from spectral_sequence import SpectralSequence
 
 from utilities import Matrix
-from sortedcontainers import SortedDict
 from differential import Differential
 from element import Bidegree
 from module import Module
@@ -15,7 +14,7 @@ class Page:
     def __init__(self, ss, page_num, io_pairs: dict, d_bigrade):
         self.ss: SpectralSequence = ss
         self.page_num = page_num
-        self.modules = SortedDict([])
+        self.modules: dict[Bidegree, Module] = {}
         self.d = Differential(self, io_pairs, Bidegree(d_bigrade))
 
     def get_module(self, bigrade: Bidegree):

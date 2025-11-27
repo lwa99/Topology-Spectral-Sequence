@@ -1,49 +1,7 @@
 from __future__ import annotations
-from sympy import Matrix as SMatrix, Poly as _Poly
+from sympy import ImmutableMatrix as SMatrix, Poly as _Poly
 from itertools import product
 from warnings import warn
-
-
-class Prime:
-    """
-    A static class used to handle prime number computation efficiently.
-    """
-    prime_list = [2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37, 41, 43, 47, 53, 59, 61, 67, 71, 73, 79, 83,
-                  89, 97, 101, 103, 107, 109, 113]
-
-    @classmethod
-    def is_prime(cls, n):
-        from math import ceil, sqrt
-        if n in cls.prime_list:
-            return True
-        elif n < cls.prime_list[-1]:
-            return False
-        else:
-            bound = ceil(sqrt(n))
-            for p in cls.prime_list:
-                if n % p == 0:
-                    return False
-                if p > bound:
-                    return True
-
-            d = cls.prime_list[-1] + 2
-            while d <= bound:
-                if n % d == 0:
-                    return False
-                d += 2
-            return True
-
-    @classmethod
-    def first_n_prime(cls, n):
-        if n <= len(cls.prime_list):
-            return cls.prime_list[0:n]
-        else:
-            d = cls.prime_list[-1] + 2
-            while len(cls.prime_list) < n:
-                if cls.is_prime(d):
-                    cls.prime_list.append(d)
-                d += 2
-            return cls.prime_list[:]
 
 
 class Matrix(SMatrix):
@@ -52,6 +10,8 @@ class Matrix(SMatrix):
     __eq__ is rewritten to compare the whole matrix.
     __hash__ calls the hash function for tuples.
     """
+    def __new__(cls, *args: list, **kwargs):
+        return super().__new__(cls, *args, **kwargs)
 
     @classmethod
     def hstack(cls, *args):
@@ -60,22 +20,6 @@ class Matrix(SMatrix):
             if m.rows != 0 and m.cols != 0:
                 non_empty_args.append(m)
         return super().hstack(*non_empty_args)
-
-    def __lt__(self, other):
-        # noinspection PyTypeChecker
-        for i, n in enumerate(self):
-            if n < other[i]:
-                return True
-        return False
-
-    def __hash__(self):
-        res = 1
-        for i, p in enumerate(Prime.first_n_prime(len(self))):
-            if self[i] >= 0:
-                res *= pow(p, 2 * self[i])
-            else:
-                res *= pow(p, -2 * self[i] - 1)  # -1 to 1, -2 to 3, -3 to 5 ...
-        return int(res)
 
     @staticmethod
     def multi_reduction(*args: Matrix):
@@ -109,18 +53,6 @@ class Matrix(SMatrix):
         total_cols = sum([m.cols for m in non_empty_args])
         return tuple(res + [rref[:, total_cols:]])
 
-    def __getitem__(self, item):
-        """
-        In case that we use a single index, make sure that the matrix is a row or column vector
-        """
-        try:
-            iter(item)
-            return super().__getitem__(item)
-        except TypeError:
-            if self.cols != 1 and self.rows != 1:
-                warn("single indexing applied on non-vector matrix.")
-            return super().__getitem__(item)
-
     def __repr__(self):
         return f"Matrix {self.tolist()}"
 
@@ -129,18 +61,14 @@ class Matrix(SMatrix):
 
 
 class Vector(Matrix):
-    def __new__(cls, *args, **kwargs):
-        instance = super().__new__(cls, *args, **kwargs)
-        if instance.cols != 1:
-            return Matrix(*args, **kwargs)
-        return instance
-
     def __getitem__(self, key):
+        assert self.cols == 1
         if isinstance(key, int):
             return super().__getitem__((key, 0))
         return super().__getitem__(key)
 
     def __repr__(self):
+        assert self.cols == 1
         return f"Vector {self.tolist()}"
 
 

@@ -6,7 +6,6 @@ if TYPE_CHECKING:
 
 from utilities import Matrix, convex_integral_combinations
 from element import HomoElem, Bidegree
-from sortedcontainers import SortedDict
 from sympy import ZZ
 
 
@@ -17,7 +16,7 @@ class Differential:
         self.knowledge: dict[HomoElem, HomoElem] = {}
         for key, value in io_pairs.items():
             self.knowledge[HomoElem(page, key)] = HomoElem(page, value)
-        self.calculated_matrices = SortedDict()
+        self.calculated_matrices:dict[Bidegree, Matrix] = {}
 
     def get_matrix(self, bidegree: Bidegree):
         if bidegree in self.calculated_matrices:
