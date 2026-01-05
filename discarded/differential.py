@@ -5,7 +5,7 @@ if TYPE_CHECKING:
     from page import Page
 
 from utilities import Matrix, convex_integral_combinations
-from element import HomoElem, Bidegree
+from algebraic_core.element import HomoElem, Bidegree
 from sortedcontainers import SortedDict
 
 
@@ -73,7 +73,8 @@ class Differential:
 
                 print(f"Generated Differential: d({element}) = {d_value}")
                 # self.knowledge[element] = d_value
-                # This was deleted because we don't want the knowledge base to have multiplicative relations.
+                # This was deleted because we don't want to have multiplicative relations among the knowledge base.
+                # otherwise, this can accumulate when using Leibnitz rule in the future
 
                 temp_knowledge[element] = d_value
                 pre_basis = pre_basis.row_join(element.coordinate)

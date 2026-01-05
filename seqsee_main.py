@@ -70,7 +70,7 @@ class CssStyle:
         self._styles = self.__add__(other)._styles
 
     def __add__(self, other):
-        """Add self and other, and return a new style instance."""
+        """Add self and other, and return a new style M."""
         summed = copy.deepcopy(self)
         if isinstance(other, str):
             single = other.split(":")

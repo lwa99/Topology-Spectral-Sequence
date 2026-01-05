@@ -1,18 +1,19 @@
 from __future__ import annotations
 
 from element import Bidegree
-from page import Page
-from utilities import Matrix, Vector, convex_integral_combinations, Poly
+from page_and_module import Page
+from utilities import convex_integral_combinations, Poly
+from matrices import *
 from sympy import Symbol
 from collections.abc import Iterable
 
 
 class SpectralSequence:
-    def __init__(self, domain, gen: list[Symbol], generator_bideg, diff_bideg_coef):
+    def __init__(self, domain, gen: list[Symbol], generator_bideg: list[list], diff_bideg_coef):
         self.gen = gen
-        generator_bideg = Matrix(generator_bideg)
+        generator_bideg = IM(generator_bideg)
 
-        assert len(gen) == generator_bideg.cols
+        assert len(gen) == generator_bideg.cols  # each generator corresponds to one column
         assert generator_bideg.rows == 2
         self.generator_bigrades = generator_bideg
 
@@ -24,7 +25,7 @@ class SpectralSequence:
         # A dictionary that maps bidegree to exponents
         self.absolute_bases: dict[Bidegree: tuple[tuple, ...]] = {}
 
-        self.diff_bideg_coef = Matrix(diff_bideg_coef)
+        self.diff_bideg_coef = IM(diff_bideg_coef)
 
     @property
     def gen_num(self):
@@ -40,12 +41,12 @@ class SpectralSequence:
         """
         return Poly.from_dict({tuple(exps): self.domain(1)}, *self.gen, domain=self.domain)
 
-    def get_ker_basis(self, bigrade) -> Matrix:
+    def get_ker_basis(self, bigrade) -> list[DMatrix]:
         """
         Calculate the first page kernel basis at a given bidegree from stored relations
         """
         if bigrade[1] < 0:
-            return Matrix([])
+            return DM([], self.domain).columns()
 
         res = []
         for relation_poly in self.relations:
@@ -64,7 +65,7 @@ class SpectralSequence:
                       f"{relation_poly} ** {s_exp[-1]} where \t{relation_poly} = 0")
                 if temp_coordinate not in res:
                     res.append(temp_coordinate)
-        return Matrix.hstack(*res)
+        return res
 
     def get_abs_basis(self, bigrade) -> tuple[tuple, ...]:
         if bigrade in self.absolute_bases.keys():
@@ -75,16 +76,23 @@ class SpectralSequence:
             return res
 
     def get_abs_dimension(self, bigrade: Bidegree):
-        if bigrade[1] < 0 or (bigrade[1] == 0 and bigrade[0] <= 0):
+        if bigrade[1] < 0 or (bigrade[1] == 0 and bigrade[0] < 0):
             return 0
+        if bigrade[1] == bigrade[0] == 0:
+            return 1  # the scalar space
         return len(self.get_abs_basis(bigrade))
 
     def get_abs_bigrade(self, exponent: Iterable[int]) -> Bidegree:
-        return Bidegree(self.generator_bigrades * Matrix(exponent))
+        return Bidegree(self.generator_bigrades * IV(exponent))
 
-    def get_abs_info(self, poly: Poly) -> tuple[Bidegree, Vector]:
+    def get_abs_info(self, poly: Poly) -> tuple[Bidegree | None, DMatrix | None]:
         abs_bigrade = None
         abs_coordinate = None
+        if poly.total_degree() == 0:
+            assert len(poly.terms()) == 1
+            if poly.terms()[0][1] == self.domain.zero:
+                return None, None
+            return IV([0, 0]), DV([poly.terms()[0][1]], self.domain)
         assert not poly.is_zero
         for exponent, coef in poly.terms():
             if abs_bigrade is None:
@@ -102,9 +110,9 @@ class SpectralSequence:
                 else:
                     cur.append(self.domain(0))
             if abs_coordinate is None:
-                abs_coordinate = Vector(cur) * coef
+                abs_coordinate = DV(cur, self.domain) * coef
             else:
-                abs_coordinate += Vector(cur) * coef
+                abs_coordinate += DV(cur, self.domain) * coef
 
         return abs_bigrade, abs_coordinate
 
@@ -112,6 +120,29 @@ class SpectralSequence:
         if known_diff is None:
             known_diff = {}
         page_n = len(self.pages)
-        new_page = Page(self, page_n, known_diff, self.diff_bideg_coef * Vector([page_n, 1]))
+        new_page = Page(self, page_n, known_diff, self.diff_bideg_coef * IV([page_n, 1]))
         self.pages.append(new_page)
         return new_page
+
+
+if __name__ == "__main__":
+    from sympy.abc import symbols
+    from sympy import GF, ZZ
+    from element import HomoElem
+    a, t = symbols("a t")
+    ss = SpectralSequence(
+        ZZ,
+        [a, t],
+        [[3, 3], [0, 0]],
+        [[1, 0],
+         [-1, 1]]
+    )
+
+    print("abs_dim", ss.get_abs_dimension(IV([3, 0])))
+    ss.kill(a-t)
+    p1 = ss.add_page({a: 0, t: 0})
+    target = HomoElem(p1, 2*t)
+
+    a = HomoElem(p1, a)
+    r = p1.divide(a, target)
+    print(r)

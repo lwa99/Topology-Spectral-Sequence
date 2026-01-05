@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(dir:*)",
+      "Bash(findstr:*)",
+      "Bash(python main.py:*)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

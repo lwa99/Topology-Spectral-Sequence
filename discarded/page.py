@@ -2,14 +2,11 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from spectral_sequence import SpectralSequence
+    from algebraic_core.spectral_sequence import SpectralSequence
 
-from utilities import Matrix, degree_generator
 from sortedcontainers import SortedDict
-from differential import Differential
-from element import Bidegree
-from sympy import div
-from module import Module
+from discarded.AlgebraicCore import Differential, Module
+from algebraic_core.element import Bidegree
 
 
 class Page:

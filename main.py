@@ -13,9 +13,8 @@ and iterates over that grid, pulling out each module’s basis.
 import sys
 from sympy.abc import symbols
 from sympy import GF
-from spectral_sequence import SpectralSequence
-from element import HomoElem, Bidegree
-
+from algebraic_core.spectral_sequence import SpectralSequence
+from algebraic_core.element import HomoElem, Bidegree
 from seqsee_main import process_data
 
 SCHEMA = {
@@ -56,8 +55,8 @@ SCHEMA = {
   ]
 }
 
+
 def build_data_dict(min_x, max_x, min_y, max_y):
-    # --- replicate Test.py setup ---
     a, t = symbols("a t")
     ss = SpectralSequence(
         GF(3),

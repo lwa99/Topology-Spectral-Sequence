@@ -1,147 +1,8 @@
 from __future__ import annotations
-from sympy import Matrix as SMatrix, Poly as _Poly
-from itertools import product
-from warnings import warn
+from sympy import Poly as _Poly
+from matrices import *
 
-
-class Prime:
-    """
-    A static class used to handle prime number computation efficiently.
-    """
-    prime_list = [2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37, 41, 43, 47, 53, 59, 61, 67, 71, 73, 79, 83,
-                  89, 97, 101, 103, 107, 109, 113]
-
-    @classmethod
-    def is_prime(cls, n):
-        from math import ceil, sqrt
-        if n in cls.prime_list:
-            return True
-        elif n < cls.prime_list[-1]:
-            return False
-        else:
-            bound = ceil(sqrt(n))
-            for p in cls.prime_list:
-                if n % p == 0:
-                    return False
-                if p > bound:
-                    return True
-
-            d = cls.prime_list[-1] + 2
-            while d <= bound:
-                if n % d == 0:
-                    return False
-                d += 2
-            return True
-
-    @classmethod
-    def first_n_prime(cls, n):
-        if n <= len(cls.prime_list):
-            return cls.prime_list[0:n]
-        else:
-            d = cls.prime_list[-1] + 2
-            while len(cls.prime_list) < n:
-                if cls.is_prime(d):
-                    cls.prime_list.append(d)
-                d += 2
-            return cls.prime_list[:]
-
-
-class Matrix(SMatrix):
-    """
-    Matrix with dictionary order.
-    __eq__ is rewritten to compare the whole matrix.
-    __hash__ calls the hash function for tuples.
-    """
-
-    @classmethod
-    def hstack(cls, *args):
-        non_empty_args = []
-        for m in args:
-            if m.rows != 0 and m.cols != 0:
-                non_empty_args.append(m)
-        return super().hstack(*non_empty_args)
-
-    def __lt__(self, other):
-        # noinspection PyTypeChecker
-        for i, n in enumerate(self):
-            if n < other[i]:
-                return True
-        return False
-
-    def __hash__(self):
-        res = 1
-        for i, p in enumerate(Prime.first_n_prime(len(self))):
-            if self[i] >= 0:
-                res *= pow(p, 2 * self[i])
-            else:
-                res *= pow(p, -2 * self[i] - 1)  # -1 to 1, -2 to 3, -3 to 5 ...
-        return int(res)
-
-    @staticmethod
-    def multi_reduction(*args: Matrix):
-        non_empty_args = []
-        for m in args:
-            if m.rows != 0:
-                non_empty_args.append(m)
-        if len(non_empty_args) == 0:
-            res: list[list | Matrix] = [[]]*len(args)
-            return tuple(res + [Matrix()])
-
-        rref, pivots = Matrix.hstack(*non_empty_args, Matrix.eye(non_empty_args[0].rows)).rref()
-        acc_col = [0]
-        res = []
-
-        i = 0
-        flag = False
-        for j in pivots:
-            while j >= acc_col[-1]:
-                if i >= len(args):
-                    flag = True
-                    break
-                acc_col.append(acc_col[-1] + args[i].cols)
-                i += 1
-                res.append([])
-            if flag:
-                break
-            res[-1].append(j - acc_col[-2])
-        res.extend([[]] * (len(args) - i))
-
-        total_cols = sum([m.cols for m in non_empty_args])
-        return tuple(res + [rref[:, total_cols:]])
-
-    def __getitem__(self, item):
-        """
-        In case that we use a single index, make sure that the matrix is a row or column vector
-        """
-        try:
-            iter(item)
-            return super().__getitem__(item)
-        except TypeError:
-            if self.cols != 1 and self.rows != 1:
-                warn("single indexing applied on non-vector matrix.")
-            return super().__getitem__(item)
-
-    def __repr__(self):
-        return f"Matrix {self.tolist()}"
-
-    def __str__(self):
-        return self.__repr__()
-
-
-class Vector(Matrix):
-    def __new__(cls, *args, **kwargs):
-        instance = super().__new__(cls, *args, **kwargs)
-        if instance.cols != 1:
-            return Matrix(*args, **kwargs)
-        return instance
-
-    def __getitem__(self, key):
-        if isinstance(key, int):
-            return super().__getitem__((key, 0))
-        return super().__getitem__(key)
-
-    def __repr__(self):
-        return f"Vector {self.tolist()}"
+verify = True
 
 
 class Poly(_Poly):
@@ -164,7 +25,7 @@ def _next_config(cur_config: list, bounds: list):
     return output
 
 
-def convex_integral_combinations(b: Matrix, v: Vector) -> tuple[tuple, ...]:
+def convex_integral_combinations(b: IMatrix, v: IMatrix) -> tuple[tuple, ...]:
     """
     This function is devoted to solve the following problem:
 
@@ -208,6 +69,7 @@ def convex_integral_combinations(b: Matrix, v: Vector) -> tuple[tuple, ...]:
 
     # Step 2: All columns dependent.
     if pivots == (0, ):
+        print(b)
         if b[1, 0] == 0:  # Then all columns have the form (x, 0), x > 0
             if v[1] != 0 or v[0] < 0:
                 return ()
@@ -220,7 +82,7 @@ def convex_integral_combinations(b: Matrix, v: Vector) -> tuple[tuple, ...]:
 
         try:
             while True:
-                if b * Vector(free_part_config) == v:
+                if b * IV(free_part_config) == v:
                     res.append(tuple(free_part_config))
                 free_part_config = _next_config(free_part_config, bounds)
         except StopIteration:
@@ -230,13 +92,13 @@ def convex_integral_combinations(b: Matrix, v: Vector) -> tuple[tuple, ...]:
     p0 = pivots[0]
     p1 = pivots[1]
 
-    adj_a = Matrix([
+    adj_a = IM([
         [b[1, p1], -b[0, p1]],
         [-b[1, p0], b[0, p0]]
     ])
     d = adj_a.det()
 
-    def check(target: Vector) -> tuple[int, int] | None:
+    def check(target: IMatrix) -> tuple[int, int] | None:
         scaled_res = adj_a * target
         for _i in scaled_res:
             if _i * d < 0 or _i % d != 0:
@@ -288,7 +150,7 @@ def convex_integral_combinations(b: Matrix, v: Vector) -> tuple[tuple, ...]:
 
     try:
         while True:
-            fix_part_config = check(v - b[:, free_part_idx] * Vector(free_part_config))
+            fix_part_config = check(v - b[:, free_part_idx] * IV(free_part_config))
             if fix_part_config is not None:
                 config = free_part_config.copy()
                 config.insert(p0, fix_part_config[0])
@@ -299,29 +161,5 @@ def convex_integral_combinations(b: Matrix, v: Vector) -> tuple[tuple, ...]:
         return tuple(res)
 
 
-def condition_fn(coefs, degree):
-    # 后面需要什么条件自己再替换
-    return True
-
-
-def degree_generator(basis_matrix, c):
-    basis_matrix = list(zip(*basis_matrix))
-
-    n = len(basis_matrix)
-    k = len(basis_matrix[0]) if n > 0 else 0
-
-    for coefs in product(range(c), repeat=n):
-        degree = [0] * k
-        for i in range(n):
-            for j in range(k):
-                degree[j] += coefs[i] * basis_matrix[i][j]
-
-        if not condition_fn(coefs, degree):
-            continue
-
-        yield Vector(degree)
-
-
 if __name__ == "__main__":
-    a = Matrix([[1, 2, 3], [4, 5, 6]])
-    print(a[2])
+    print(convex_integral_combinations(IM([[1, 2], [3, 4]]), IV([0, 0])))

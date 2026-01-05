@@ -3,7 +3,7 @@ from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from page import Page
-    from element import HomoElem, Bidegree
+    from algebraic_core.element import HomoElem, Bidegree
 
 from utilities import Matrix, Vector
 
