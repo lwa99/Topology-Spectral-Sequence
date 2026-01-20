@@ -14,26 +14,20 @@ _verify = True
 
 
 class Module:
-    def __init__(self, page, bidegree, span_set: Iterable[DMatrix], relation_set: Iterable[DMatrix]):
+    def __init__(self, page: Page, bidegree, span_set: Iterable[DMatrix], relation_set: Iterable[DMatrix]):
         self.page = page
         self.bideg = bidegree
         self.domain = self.page.domain
         self.dim = None  # TODO: compute dim from bideg
         self.span = HomoCollection(page=page, bideg=bidegree, coords=span_set)
+        self.S = self.span.to_SNF_matrix()
         self.relation = HomoCollection(page=page, bideg=bidegree, coords=relation_set)
+        self.R = self.relation.to_SNF_matrix()
         print(f"module initialization: bidegree:{bidegree}, span_set: {span_set}, S: {self.S}, R: {self.R}")
 
         if _verify:
             for r in self.relation.coords:
                 assert self.S.spans(r)
-
-    @property
-    def S(self):
-        return self.span.to_SNF_matrix()
-
-    @property
-    def R(self):
-        return self.relation.to_SNF_matrix()
 
     def get_structural_information(self):
         """
@@ -71,8 +65,16 @@ class Module:
             return 1
         return 0
 
-    def _get_next_span_set(self):
-        pass
+    def get_diff_span(self, I: DMatrix, d_I: DMatrix):
+        """
+        Given I and d(I), compute d(S)
+        """
+        print("Debug", self.S, I)
+        P, Q, D = SNF.align(I, self.S)
+        # P, Q, D = self.S.align(I)
+        diag = [HomoElem(self.page, x.to_sympy) for x in D.diagonal()]
+        assert len(diag) == D.shape[0] == D.shape[1]
+        return self.page.collection_divide(d_I * P, diag) * Q.inv_den()[0]
 
     def get_next_module(self):
         pass
@@ -104,7 +106,8 @@ class Page:
 
     def generate_module(self, bidegree) -> Module:
         if self.page_num == 1:
-            identity = DMatrix.eye(self.ss.get_abs_dimension(bidegree), self.domain).columns()
+            d = self.ss.get_abs_dimension(bidegree)
+            identity = DMatrix.eye((d, d), self.domain).columns()
             relations = self.ss.get_ker_basis(bidegree)
             return Module(self, bidegree, identity, relations)
 
@@ -127,3 +130,8 @@ class Page:
         coord_in_S = combined_coord.to_list()[:len(xS_q)]
         abs_coord = M_q.S * DMatrix.from_list(coord_in_S, self.domain)
         return HomoElem(self, abs_bideg=q_bideg, abs_coordinate=abs_coord)
+
+    def collection_divide(self, X: HomoCollection, l: list[HomoElem]):
+        elems = [self.divide(x, l[i]) for (i, x) in enumerate(X.elems)]
+        return HomoCollection(elems=elems)
+

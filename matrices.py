@@ -45,12 +45,13 @@ def hstack(*args) -> Matrix:
 
 class DMatrix(_DMatrix):
     @classmethod
-    def _from_original_DMatrix(cls, M) -> 'DMatrix':
-        return cls.from_rep(M.rep)
+    def _from_original_DMatrix(cls, M: _DMatrix) -> 'DMatrix':
+        return DMatrix(M.to_list(), M.shape, M.domain)
 
     @classmethod
     def from_list(cls, rows, domain):
-        return cls._from_original_DMatrix(super().from_list(rows, domain))
+        res = cls._from_original_DMatrix(super().from_list(rows, domain))
+        return res
 
     def extract_columns(self, indices) -> 'DMatrix':
         return self.extract(list(range(self.shape[0])), indices)
@@ -67,13 +68,13 @@ class DMatrix(_DMatrix):
         return cls.from_list(M.tolist(), **kwargs)
 
     @classmethod
-    def hstack(cls, A: 'DMatrix', *B: 'DMatrix'):
+    def hstack(cls, A: 'DMatrix', *B: 'DMatrix') -> 'DMatrix':
         assert isinstance(A, DMatrix), type(A)
-        return cls.from_Matrix(hstack(A, *B), domain=A.domain)
-
-    @classmethod
-    def eye(cls, n, domain):
-        return super().eye((n, n), domain)
+        res = cls.from_Matrix(hstack(A, *B), domain=A.domain)
+        print("***", A, *B)
+        res = super().hstack(A, *B)
+        print("***", res)
+        return res.to_sparse()
 
     def __getitem__(self, item):
         from sympy.polys.matrices.domainscalar import DomainScalar

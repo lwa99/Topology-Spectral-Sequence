@@ -128,7 +128,7 @@ class SpectralSequence:
 if __name__ == "__main__":
     from sympy.abc import symbols
     from sympy import GF, ZZ
-    from element import HomoElem
+    from element import HomoElem, HomoCollection
     a, t = symbols("a t")
     ss = SpectralSequence(
         ZZ,
@@ -138,11 +138,29 @@ if __name__ == "__main__":
          [-1, 1]]
     )
 
-    print("abs_dim", ss.get_abs_dimension(IV([3, 0])))
-    ss.kill(a-t)
-    p1 = ss.add_page({a: 0, t: 0})
-    target = HomoElem(p1, 2*t)
+    # print("abs_dim", ss.get_abs_dimension(IV([3, 0])))
+    # ss.kill(a-t)
+    # p1 = ss.add_page({a: 0, t: 0})
+    # target = HomoElem(p1, 2*t)
+    #
+    # m = HomoElem(p1, a)
+    # r = p1.divide(m, target)
+    print("abs_basis", ss.get_abs_basis(IV([6, 0])))
+    p1 = ss.add_page({a: 1, t: 1})
+    a_2 = HomoElem(p1, a**2)
+    at = HomoElem(p1, a*t)
+    t_2 = HomoElem(p1, t**2)
 
-    a = HomoElem(p1, a)
-    r = p1.divide(a, target)
-    print(r)
+    c_1 = a_2 + t_2
+    c_2 = a_2 + at
+    c_3 = a_2 - t_2
+
+    r_1 = HomoElem(p1, 2*a + 2*t)
+    r_2 = HomoElem(p1, 3*a + t)
+    r_3 = HomoElem(p1, 2*a - 2*t)
+
+    I = HomoCollection([c_1, c_2, c_3]).to_matrix()
+    d_I = HomoCollection([r_1, r_2, r_3]).to_matrix()
+    span = p1[IV([6, 0])].get_diff_span(I, d_I)
+    print(span.elems)
+

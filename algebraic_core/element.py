@@ -5,6 +5,7 @@ from utilities import verify
 from matrices import *
 from sympy import Poly, Expr
 from collections.abc import Iterable
+from snf import SNFMatrix
 
 if TYPE_CHECKING:
     from page_and_module import Page
@@ -153,8 +154,7 @@ class HomoCollection:
             return None
         return DMatrix.hstack(*self.coords)
 
-    def to_SNF_matrix(self):
-        from snf import SNFMatrix
+    def to_SNF_matrix(self) -> SNFMatrix | None:
         if self.is_empty:
             return None
         return SNFMatrix.hstack(*self.coords)

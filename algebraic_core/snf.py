@@ -89,18 +89,19 @@ class SNF:
             return None
 
     @staticmethod
-    def align(A: DMatrix, B: DMatrix, _X=None):
+    def align(A: DMatrix, B: DMatrix, _X=None) -> tuple[DMatrix, DMatrix, DMatrix]:
         """
         Return P, Q, D such that AP = BQD, where P, Q are invertible and D is diagonal.
         It requires that A=BX is solvable.
         """
         if _X is None:
             _X = SNF.solve(A, B)[0]
-        if _X is not None:
-            D, U, V = SNF.decomp(_X)
-            assert A * V == B * U.inv_den()[0] * D
-            return V, U.inv_den()[0], D
-        assert False
+        assert A == B * _X
+        D, U, V = SNF.decomp(_X)
+        print(U, U.inv_den())
+        assert _X * V == U.inv_den()[0] * D
+        assert A * V == B * U.inv_den()[0] * D
+        return V, U.inv_den()[0], D
 
     @staticmethod
     def kernel_of(A: DMatrix):
@@ -147,7 +148,7 @@ class SNFMatrix(DMatrix):
         return self.solve(v) is not None
 
     def align(self, M):
-        return SNF.align(M, self, _X=self.solve(M))
+        return SNF.align(M, self, _X=self.solve(M)[0])
 
     def __str__(self):
         from sympy import MatrixBase
