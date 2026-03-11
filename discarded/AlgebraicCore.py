@@ -10,7 +10,7 @@ from typing import Optional, List, Dict, Tuple, TYPE_CHECKING
 from sortedcontainers import SortedDict
 
 if TYPE_CHECKING:
-    from algebraic_core.element import HomoElem, Bidegree
+    from src.element import HomoElem, Bidegree
     from page import Page
 
 _verify = True
@@ -73,10 +73,10 @@ def coordinate_to_homo_elem(page: Page, bidegree, coordinate: Matrix):
         HomoElem with given bidegree and coordinate
     """
     if coordinate is None or coordinate.is_zero_matrix:
-        from algebraic_core.element import HomoElem
+        from src.element import HomoElem
         return HomoElem(page, expr="0")
 
-    from algebraic_core.element import HomoElem
+    from src.element import HomoElem
     return HomoElem(page, abs_bideg=bidegree, abs_coordinate=coordinate)
 
 
@@ -837,7 +837,7 @@ class Differential:
         The io_pairs dict maps generator expressions to their images.
         This is stored as HomoElem pairs internally.
         """
-        from algebraic_core.element import HomoElem
+        from src.element import HomoElem
 
         self.page = page
         self.d_bidegree = d_bigrade
@@ -866,7 +866,7 @@ class Differential:
         if bidegree in self.calculated_matrices:
             return self.calculated_matrices[bidegree]
 
-        from algebraic_core.element import HomoElem, Bidegree as BidegreeType
+        from src.element import HomoElem, Bidegree as BidegreeType
 
         target_bidegree = bidegree + self.d_bidegree
         if self.page.ss.get_abs_dimension(target_bidegree) == 0:

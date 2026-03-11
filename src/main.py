@@ -13,8 +13,8 @@ and iterates over that grid, pulling out each module’s basis.
 import sys
 from sympy.abc import symbols
 from sympy import GF
-from algebraic_core.spectral_sequence import SpectralSequence
-from algebraic_core.element import HomoElem, Bidegree
+from src.spectral_sequence import SpectralSequence
+from src.element import HomoElem, Bidegree
 from seqsee_main import process_data
 
 SCHEMA = {

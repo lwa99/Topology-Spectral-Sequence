@@ -1,7 +1,7 @@
 from sympy.abc import symbols
 from sympy import GF
-from algebraic_core.spectral_sequence import SpectralSequence
-from algebraic_core.element import HomoElem
+from src.spectral_sequence import SpectralSequence
+from src.element import HomoElem
 
 a, t = symbols(["a", "t"])
 ss = SpectralSequence(

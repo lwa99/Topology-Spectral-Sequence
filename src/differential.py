@@ -18,18 +18,23 @@ class Differential:
         for key, value in io_pairs.items():
             self.info[HomoElem(page, key)] = HomoElem(page, value)
 
+        self.info_matrices: dict[Bidegree, DMatrix] = {}
+
     def I_at(self, bidegree):
+        """Gather the known information correspond to the specified bidegree."""
         info_set: list[DMatrix] = [k.coordinate for k in self.info.keys() if k.bidegree == bidegree]
-        info_set.extend(self.page[bidegree].relation_set)
-        return SNFMatrix.hstack(*info_set, domain=self.domain)
+        info_set.extend(self.page[bidegree].relation.elems)
+        res = DMatrix.static_hstack(*info_set)
+        self.info_matrices[bidegree] = res
+        return res
 
     def extend_by_forward_leibniz(self, bidegree):
         pass
 
     def info_complete(self, bidegree):
         module = self.page[bidegree]
-        K = SNFMatrix.hstack(self.I, module.relation_set, domain=self.domain)
-        for s in module.span_set:
+        K = SNFMatrix.static_hstack(self.info_matrices[bidegree], module.relation.to_matrix())
+        for s in module.span.elems:
             if not K.spans(s):
                 return False
         return True

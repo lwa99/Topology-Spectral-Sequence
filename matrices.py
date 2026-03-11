@@ -68,13 +68,10 @@ class DMatrix(_DMatrix):
         return cls.from_list(M.tolist(), **kwargs)
 
     @classmethod
-    def hstack(cls, A: 'DMatrix', *B: 'DMatrix') -> 'DMatrix':
+    def static_hstack(cls, A: 'DMatrix', *B: 'DMatrix') -> 'DMatrix':
         assert isinstance(A, DMatrix), type(A)
         res = cls.from_Matrix(hstack(A, *B), domain=A.domain)
-        print("***", A, *B)
-        res = super().hstack(A, *B)
-        print("***", res)
-        return res.to_sparse()
+        return res
 
     def __getitem__(self, item):
         from sympy.polys.matrices.domainscalar import DomainScalar

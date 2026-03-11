@@ -1,11 +1,4 @@
-﻿"""snf.py
-
-Minimal API surface used by `spectral_sequence.py`.
-
-This file intentionally contains only stubs (no implementation).
-"""
-
-from __future__ import annotations
+﻿from __future__ import annotations
 from matrices import *
 from sympy.matrices.normalforms import smith_normal_decomp
 
@@ -82,8 +75,8 @@ class SNF:
             if U is None or D is None or V is None:
                 D, U, V = SNF.decomp(A)
             S, free_rows = SNF.diag_divide(U * T, D)
+            assert A * V * S == T, (A * V * S, T)
             res = V * S
-            assert A * res == T
             return res, V.extract_columns(free_rows)
         except ExactQuotientFailed:
             return None

@@ -152,12 +152,12 @@ class HomoCollection:
     def to_matrix(self) -> DMatrix | None:
         if self.is_empty:
             return None
-        return DMatrix.hstack(*self.coords)
+        return DMatrix.static_hstack(*self.coords)
 
     def to_SNF_matrix(self) -> SNFMatrix | None:
         if self.is_empty:
             return None
-        return SNFMatrix.hstack(*self.coords)
+        return SNFMatrix.static_hstack(*self.coords)
 
     def __len__(self):
         if self._elems is not None:

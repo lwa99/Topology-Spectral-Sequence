@@ -5,7 +5,7 @@ if TYPE_CHECKING:
     from page import Page
 
 from utilities import Matrix, convex_integral_combinations
-from algebraic_core.element import HomoElem, Bidegree
+from src.element import HomoElem, Bidegree
 from sortedcontainers import SortedDict
 
 

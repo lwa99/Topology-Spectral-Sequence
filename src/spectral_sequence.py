@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from element import Bidegree
+from .element import Bidegree
 from page_and_module import Page
 from utilities import convex_integral_combinations, Poly
 from matrices import *
@@ -159,8 +159,8 @@ if __name__ == "__main__":
     r_2 = HomoElem(p1, 3*a + t)
     r_3 = HomoElem(p1, 2*a - 2*t)
 
-    I = HomoCollection([c_1, c_2, c_3]).to_matrix()
-    d_I = HomoCollection([r_1, r_2, r_3]).to_matrix()
+    I = HomoCollection([c_1, c_2, c_3])
+    d_I = HomoCollection([r_1, r_2, r_3])
     span = p1[IV([6, 0])].get_diff_span(I, d_I)
     print(span.elems)
 

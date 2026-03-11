@@ -65,16 +65,17 @@ class Module:
             return 1
         return 0
 
-    def get_diff_span(self, I: DMatrix, d_I: DMatrix):
+    def get_diff_span(self, I: HomoCollection, d_I: HomoCollection):
         """
         Given I and d(I), compute d(S)
         """
-        print("Debug", self.S, I)
-        P, Q, D = SNF.align(I, self.S)
+        I_M = I.to_matrix()
+        P, Q, D = SNF.align(I_M, self.S)
         # P, Q, D = self.S.align(I)
-        diag = [HomoElem(self.page, x.to_sympy) for x in D.diagonal()]
+        print(D.diagonal())
+        diag = [HomoElem(self.page, self.domain(x)) for x in D.diagonal()]
         assert len(diag) == D.shape[0] == D.shape[1]
-        return self.page.collection_divide(d_I * P, diag) * Q.inv_den()[0]
+        return self.page.collection_divide_by(d_I * P, diag) * Q.inv_den()[0]
 
     def get_next_module(self):
         pass
@@ -115,6 +116,7 @@ class Page:
         """find q such that xq = y"""
         q_bideg = y.bidegree - x.bidegree
         M_q, M_y = self[q_bideg], self[y.bidegree]
+        print("in divide", y, M_q.dim)
         xS_q = x * M_q.span
         xS_q_with_rel = xS_q.extend(M_y.relation)
 
@@ -131,7 +133,7 @@ class Page:
         abs_coord = M_q.S * DMatrix.from_list(coord_in_S, self.domain)
         return HomoElem(self, abs_bideg=q_bideg, abs_coordinate=abs_coord)
 
-    def collection_divide(self, X: HomoCollection, l: list[HomoElem]):
-        elems = [self.divide(x, l[i]) for (i, x) in enumerate(X.elems)]
+    def collection_divide_by(self, X: HomoCollection, l: list[HomoElem]):
+        elems = [self.divide(l[i], x) for (i, x) in enumerate(X.elems)]
         return HomoCollection(elems=elems)
 

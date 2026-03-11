@@ -2,11 +2,11 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from algebraic_core.spectral_sequence import SpectralSequence
+    from src.spectral_sequence import SpectralSequence
 
 from sortedcontainers import SortedDict
 from discarded.AlgebraicCore import Differential, Module
-from algebraic_core.element import Bidegree
+from src.element import Bidegree
 
 
 class Page:
