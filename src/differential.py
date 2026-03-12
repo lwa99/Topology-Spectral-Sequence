@@ -3,7 +3,7 @@ from typing import TYPE_CHECKING
 
 from snf import *
 from matrices import *
-from element import Bidegree, HomoElem
+from element import HomoElem, HomoCollection, Bidegree
 
 if TYPE_CHECKING:
     from page_and_module import Page
@@ -18,14 +18,16 @@ class Differential:
         for key, value in io_pairs.items():
             self.info[HomoElem(page, key)] = HomoElem(page, value)
 
-        self.info_matrices: dict[Bidegree, DMatrix] = {}
+        self.info_collections: dict[Bidegree, HomoCollection] = {}
 
-    def I_at(self, bidegree):
+    def info_collection_at(self, bidegree):
         """Gather the known information correspond to the specified bidegree."""
-        info_set: list[DMatrix] = [k.coordinate for k in self.info.keys() if k.bidegree == bidegree]
-        info_set.extend(self.page[bidegree].relation.elems)
-        res = DMatrix.static_hstack(*info_set)
-        self.info_matrices[bidegree] = res
+        if bidegree in self.info_collections.keys():
+            return self.info_collections[bidegree]
+        info_collection = HomoCollection(page=self.page, bideg=bidegree,
+                                         coords=[k.coordinate for k in self.info.keys() if k.bidegree == bidegree])
+        res = info_collection.join(self.page[bidegree].relation)
+        self.info_collections[bidegree] = res
         return res
 
     def extend_by_forward_leibniz(self, bidegree):
@@ -33,9 +35,10 @@ class Differential:
 
     def info_complete(self, bidegree):
         module = self.page[bidegree]
-        K = SNFMatrix.static_hstack(self.info_matrices[bidegree], module.relation.to_matrix())
-        for s in module.span.elems:
-            if not K.spans(s):
+        if self.info_collection_at(bidegree).is_empty:
+            return module.span.is_empty
+        for s in module.span.coords:
+            if not self.info_collection_at(bidegree).to_SNF_matrix().spans(s):
                 return False
         return True
 

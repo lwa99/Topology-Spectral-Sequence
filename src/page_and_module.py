@@ -69,6 +69,9 @@ class Module:
         """
         Given I and d(I), compute d(S)
         """
+        assert self.page.d.info_complete(self.bideg)
+        if I.is_empty:
+            return HomoCollection(coords=[], bideg=d_I.bideg, page=d_I.page)
         I_M = I.to_matrix()
         P, Q, D = SNF.align(I_M, self.S)
         # P, Q, D = self.S.align(I)
@@ -77,8 +80,11 @@ class Module:
         assert len(diag) == D.shape[0] == D.shape[1]
         return self.page.collection_divide_by(d_I * P, diag) * Q.inv_den()[0]
 
+    def get_diff_ker(self):
+        raise NotImplementedError
+
     def get_next_module(self):
-        pass
+        raise NotImplementedError
 
 
 class Page:
@@ -112,13 +118,15 @@ class Page:
             relations = self.ss.get_ker_basis(bidegree)
             return Module(self, bidegree, identity, relations)
 
+        raise NotImplementedError
+
     def divide(self, x: HomoElem, y: HomoElem):
         """find q such that xq = y"""
         q_bideg = y.bidegree - x.bidegree
         M_q, M_y = self[q_bideg], self[y.bidegree]
         print("in divide", y, M_q.dim)
         xS_q = x * M_q.span
-        xS_q_with_rel = xS_q.extend(M_y.relation)
+        xS_q_with_rel = xS_q.join(M_y.relation)
 
         if xS_q_with_rel.is_empty:
             if y.isZero():
@@ -134,6 +142,7 @@ class Page:
         return HomoElem(self, abs_bideg=q_bideg, abs_coordinate=abs_coord)
 
     def collection_divide_by(self, X: HomoCollection, l: list[HomoElem]):
+        """Divide the i-th element in X by the i-th element in l and form a new HomoCollection."""
         elems = [self.divide(l[i], x) for (i, x) in enumerate(X.elems)]
         return HomoCollection(elems=elems)
 

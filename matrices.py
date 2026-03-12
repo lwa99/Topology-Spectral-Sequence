@@ -45,13 +45,11 @@ def hstack(*args) -> Matrix:
 
 class DMatrix(_DMatrix):
     @classmethod
-    def _from_original_DMatrix(cls, M: _DMatrix) -> 'DMatrix':
-        return DMatrix(M.to_list(), M.shape, M.domain)
-
-    @classmethod
     def from_list(cls, rows, domain):
-        res = cls._from_original_DMatrix(super().from_list(rows, domain))
-        return res
+        nrows = len(rows)
+        ncols = 0 if not nrows else len(rows[0])
+        domain_rows = [[domain(e) for e in row] for row in rows]
+        return cls(domain_rows, (nrows, ncols), domain)
 
     def extract_columns(self, indices) -> 'DMatrix':
         return self.extract(list(range(self.shape[0])), indices)
@@ -60,6 +58,7 @@ class DMatrix(_DMatrix):
         return [self.extract_columns([i, ]) for i in range(self.shape[1])]
 
     def __eq__(self, other):
+        """The original __eq__ is representation-sensitive. We overwrite it so that it compares values only."""
         return self.to_ddm() == other.to_ddm()
 
     @classmethod

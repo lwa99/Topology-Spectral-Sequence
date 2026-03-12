@@ -1,5 +1,7 @@
-# All spans are Z-spans.
-# For ImA and KerB, the spanning vectors are written as COLUMNS of a single matrix.
+from matrices import *
+from sympy import ZZ
+from snf import SNFMatrix
+
 def get_examples():
     examples = []
     # Example 1
@@ -281,4 +283,13 @@ def get_examples():
 
 examples = get_examples()
 
+
 def test_info_complete():
+    pass
+
+
+A = DM([[0, 1], [2, 3]], ZZ)
+B = DM([[4, 5], [6, 7]], ZZ)
+H = SNFMatrix.static_hstack(A, B)
+print(H)
+print(type(H))

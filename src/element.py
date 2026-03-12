@@ -2,6 +2,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from utilities import verify
+from warnings import warn
 from matrices import *
 from sympy import Poly, Expr
 from collections.abc import Iterable
@@ -103,18 +104,33 @@ class HomoElem:
 
 class HomoCollection:
     """Collection of HomoElem of the same bidegree"""
-    def __init__(self, elems: Iterable[HomoElem] = None, *, page: Page = None,
-                 bideg: Bidegree = None, coords: Iterable[DMatrix] = None):
+    def __init__(self,
+                 page: Page | None,
+                 bideg: Bidegree | None,
+                 elems: Iterable[HomoElem] = None,
+                 coords: Iterable[DMatrix] = None):
+
         if elems is not None:
             self._elems = list(elems)
-            assert len(self._elems) > 0
-            self.bideg = self._elems[0].bidegree
-            self.page = self._elems[0].page
             self._coords = None
-            if verify:
-                for e in self._elems:
-                    assert e.page == self.page
-                    assert e.bidegree == self.bideg
+
+            if len(self._elems) == 0:
+                assert page is not None
+                assert bideg is not None
+                self.bideg = bideg
+                self.page = page
+            else:
+                self.bideg = self._elems[0].bidegree
+                self.page = self._elems[0].page
+                if bideg is not None:
+                    assert bideg == self.bideg
+                if page is not None:
+                    assert page == self.page
+                if verify:
+                    for e in self._elems:
+                        assert e.page == self.page
+                        assert e.bidegree == self.bideg
+
         else:
             assert page is not None
             assert bideg is not None
@@ -141,9 +157,16 @@ class HomoCollection:
         return len(self) == 0
 
     @staticmethod
+    def from_elems(elems):
+        """Only use when elems is non-empty."""
+        assert len(elems) > 0
+        return HomoCollection(None, None, elems)
+
+    @staticmethod
     def from_exprs(page, exprs: Iterable[Expr]):
+        """Only use when exprs is non-empty."""
         data = [HomoElem(page, expr) for expr in exprs]
-        return HomoCollection(data)
+        return HomoCollection.from_elems(data)
 
     @staticmethod
     def from_matrix(page: Page, bideg: Bidegree, M: DMatrix):
@@ -172,11 +195,12 @@ class HomoCollection:
         return HomoCollection.from_matrix(self.page, self.bideg, S * M)
 
     def __rmul__(self, x: HomoElem):
-        return HomoCollection(elems=[x * y for y in self.elems])
+        assert self.page == x.page
+        return HomoCollection(self.page, x.bidegree + self.bideg, elems=[x * y for y in self.elems])
 
-    def extend(self, other: HomoCollection):
-        print("extend", self._elems, other._coords)
-        return HomoCollection(elems=self.elems + other.elems)
+    def join(self, other: HomoCollection):
+        assert self.page == other.page and self.bideg == other.bideg
+        return HomoCollection(self.page, other.bideg, elems=self.elems + other.elems)
 
 
 if __name__ == "__main__":

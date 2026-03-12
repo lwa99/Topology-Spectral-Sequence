@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from .element import Bidegree
+from element import Bidegree
 from page_and_module import Page
 from utilities import convex_integral_combinations, Poly
 from matrices import *
