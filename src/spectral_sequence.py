@@ -159,8 +159,8 @@ if __name__ == "__main__":
     r_2 = HomoElem(p1, 3*a + t)
     r_3 = HomoElem(p1, 2*a - 2*t)
 
-    I = HomoCollection([c_1, c_2, c_3])
-    d_I = HomoCollection([r_1, r_2, r_3])
+    I = HomoCollection.from_elems([c_1, c_2, c_3])
+    d_I = HomoCollection.from_elems([r_1, r_2, r_3])
     span = p1[IV([6, 0])].get_diff_span(I, d_I)
     print(span.elems)
 

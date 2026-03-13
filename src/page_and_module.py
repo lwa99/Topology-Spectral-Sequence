@@ -81,10 +81,43 @@ class Module:
         return self.page.collection_divide_by(d_I * P, diag) * Q.inv_den()[0]
 
     def get_diff_ker(self):
-        raise NotImplementedError
+        """
+        Compute ker(d) in absolute coordinates at this bidegree, then include source relations.
 
-    def get_next_module(self):
-        raise NotImplementedError
+        If d(S) is represented by columns and target relations are R', we solve
+            d(S) * u - R' * v = 0
+        by taking the kernel of [d(S) | -R'] and projecting to the u-part.
+        """
+        assert self.page.d.info_complete(self.bideg)
+
+        # If the source span is empty, the kernel is exactly the relation part.
+        if self.span.is_empty:
+            return self.relation
+
+        I, d_I, target_bideg = self.page.d.info_with_images_at(self.bideg)
+        target_module = self.page[target_bideg]
+
+        dS = self.get_diff_span(I, d_I)
+        dS_M = dS.to_matrix()
+
+        # Number of source span generators (columns of S).
+        n = self.S.shape[1]
+
+        if dS_M is None:
+            # This can only occur for the trivial source span; guarded above, but keep safe.
+            ker_coeff = DMatrix.from_list([[] for _ in range(n)], self.domain)
+        else:
+            if target_module.R is None:
+                block = dS_M
+            else:
+                block = DMatrix.static_hstack(dS_M, -target_module.R)
+
+            ker_block = SNF.kernel_of(block)
+            ker_coeff = ker_block.extract(list(range(n)), list(range(ker_block.shape[1])))
+
+        ker_from_span = self.S * ker_coeff
+        ker_collection = HomoCollection.from_matrix(self.page, self.bideg, ker_from_span)
+        return ker_collection.join(self.relation)
 
 
 class Page:
@@ -118,7 +151,26 @@ class Page:
             relations = self.ss.get_ker_basis(bidegree)
             return Module(self, bidegree, identity, relations)
 
-        raise NotImplementedError
+        prev_page = self.ss.pages[self.page_num - 1]
+        assert prev_page is not None
+
+        # Ambient module for E_{r+1} is ker(d_r) inside E_r at this bidegree.
+        prev_module_at_bideg = prev_page[bidegree]
+        outgoing_kernel = prev_module_at_bideg.get_diff_ker()
+
+        # Relations for E_{r+1}: image of incoming d_r from bidegree - d_r.
+        incoming_source_bideg = bidegree - prev_page.d.d_bidegree
+        if self.ss.get_abs_dimension(incoming_source_bideg) == 0:
+            incoming_image = HomoCollection(page=prev_page, bideg=bidegree, coords=[])
+        else:
+            incoming_source_module = prev_page[incoming_source_bideg]
+            I_in, dI_in, incoming_target_bideg = prev_page.d.info_with_images_at(incoming_source_bideg)
+            assert incoming_target_bideg == bidegree
+            incoming_image = incoming_source_module.get_diff_span(I_in, dI_in)
+
+        # Keep previous-page relations as zero in absolute coordinates of the new page.
+        relations = incoming_image.join(prev_module_at_bideg.relation)
+        return Module(self, bidegree, outgoing_kernel.coords, relations.coords)
 
     def divide(self, x: HomoElem, y: HomoElem):
         """find q such that xq = y"""
@@ -144,5 +196,5 @@ class Page:
     def collection_divide_by(self, X: HomoCollection, l: list[HomoElem]):
         """Divide the i-th element in X by the i-th element in l and form a new HomoCollection."""
         elems = [self.divide(l[i], x) for (i, x) in enumerate(X.elems)]
-        return HomoCollection(elems=elems)
+        return HomoCollection(page=self, bideg=X.bideg, elems=elems)
 

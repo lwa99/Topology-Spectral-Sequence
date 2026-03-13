@@ -2,7 +2,6 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from utilities import verify
-from warnings import warn
 from matrices import *
 from sympy import Poly, Expr
 from collections.abc import Iterable
@@ -77,7 +76,7 @@ class HomoElem:
         return HomoElem(self.page, self.poly * other.poly)
 
     def __eq__(self, other):
-        return (self - other).isZero
+        return (self - other).isZero()
 
     def __pow__(self, power, modulo=None):
         if power == 0:
