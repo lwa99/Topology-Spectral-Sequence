@@ -26,7 +26,11 @@ class Module:
         print(f"module initialization: bidegree:{bidegree}, span_set: {span_set}, S: {self.S}, R: {self.R}")
 
         if _verify:
-            if self.S is None or self.S.shape[0] == 0:
+            if self.S is None:
+                for r in self.relation.coords:
+                    # If the span set is empty, only literal zero vectors are valid relations.
+                    assert all(e == self.domain.zero for e in r.to_list_flat())
+            elif self.S.shape[0] == 0:
                 for r in self.relation.coords:
                     # In a zero ambient module, only zero-dimensional relation vectors are valid.
                     assert r.shape[0] == 0
@@ -101,7 +105,8 @@ class Module:
             if d_i == self.domain.zero:
                 if not rhs_i.isZero():
                     raise ValueError(
-                        f"Inconsistent differential alignment at {self.bideg}: expected zero rhs at diagonal index {i}."
+                        f"Inconsistent differential alignment on page {self.page.page_num} "
+                        f"at bidegree {self.bideg}: expected zero rhs at diagonal index {i}."
                     )
                 y_known_elems.append(zero_elem)
             else:
@@ -109,7 +114,8 @@ class Module:
                 q = self.page.divide(divider, rhs_i)
                 if q is None:
                     raise ValueError(
-                        f"Cannot divide differential image by diagonal entry at index {i} for bidegree {self.bideg}."
+                        f"Cannot divide differential image by diagonal entry at index {i} "
+                        f"on page {self.page.page_num} at bidegree {self.bideg}."
                     )
                 y_known_elems.append(q)
 
@@ -117,7 +123,8 @@ class Module:
         for j in range(diag_len, len(rhs_cols)):
             if not rhs_cols[j].isZero():
                 raise ValueError(
-                    f"Inconsistent differential alignment at {self.bideg}: nonzero rhs column {j} "
+                    f"Inconsistent differential alignment on page {self.page.page_num} "
+                    f"at bidegree {self.bideg}: nonzero rhs column {j} "
                     f"outside diagonal part of D with shape {D.shape}."
                 )
 
@@ -187,7 +194,23 @@ class Page:
         self.modules: dict = {}
         self.d = Differential(self, io_pairs, Bidegree(d_bigrade))
 
+    @staticmethod
+    def _normalize_bidegree(bidegree) -> Bidegree:
+        if isinstance(bidegree, IMatrix):
+            if bidegree.shape == (2, 1):
+                return bidegree
+            if bidegree.shape == (1, 2):
+                return Bidegree([bidegree[0, 0], bidegree[0, 1]])
+            raise ValueError(f"Bidegree matrix must have shape (2, 1) or (1, 2), got {bidegree.shape}.")
+
+        if isinstance(bidegree, tuple) and len(bidegree) == 2:
+            return Bidegree(bidegree)
+        if isinstance(bidegree, list) and len(bidegree) == 2:
+            return Bidegree(bidegree)
+        raise TypeError(f"Invalid bidegree type: {type(bidegree)}. Expected 2-vector or 2-entry tuple/list.")
+
     def __getitem__(self, bidegree: Bidegree) -> Module:
+        bidegree = self._normalize_bidegree(bidegree)
         if bidegree in self.modules:
             return self.modules[bidegree]
         else:
@@ -218,7 +241,11 @@ class Page:
             if not prev_page.d.info_complete(incoming_source_bideg):
                 prev_page.d.complete_info_set(incoming_source_bideg)
             I_in, dI_in, incoming_target_bideg = prev_page.d.info_with_images_at(incoming_source_bideg)
-            assert incoming_target_bideg == bidegree
+            assert incoming_target_bideg == bidegree, (
+                f"Incoming differential target mismatch while building page {self.page_num} "
+                f"at bidegree {bidegree}: expected target {bidegree}, got {incoming_target_bideg} "
+                f"from page {prev_page.page_num}."
+            )
             incoming_image = incoming_source_module.get_diff_span(I_in, dI_in)
 
         # Keep previous-page relations as zero in absolute coordinates of the new page.

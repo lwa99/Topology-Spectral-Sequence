@@ -15,6 +15,7 @@ from sympy.abc import symbols
 from sympy import GF
 from src.spectral_sequence import SpectralSequence
 from src.element import HomoElem, Bidegree
+from src.matrices import DMatrix
 from seqsee_main import process_data
 
 SCHEMA = {
@@ -56,6 +57,38 @@ SCHEMA = {
 }
 
 
+def _matrix_rank(M):
+    if M is None:
+        return 0
+    rows, cols = M.shape
+    if rows == 0 or cols == 0:
+        return 0
+    return M.rank()
+
+
+def _quotient_basis_coords(module):
+    """
+    Pick span vectors that form a basis of S/R in absolute coordinates.
+    This avoids SNF structural extraction, which currently hits assertion
+    failures on some edge cases.
+    """
+    if module.S is None:
+        return []
+
+    selected = []
+    current = module.R
+    current_rank = _matrix_rank(current)
+
+    for coord in module.span.coords:
+        candidate = coord if current is None else DMatrix.static_hstack(current, coord)
+        new_rank = _matrix_rank(candidate)
+        if new_rank > current_rank:
+            selected.append(coord)
+            current = candidate
+            current_rank = new_rank
+    return selected
+
+
 def build_data_dict(min_x, max_x, min_y, max_y):
     a, t = symbols("a t")
     ss = SpectralSequence(
@@ -69,7 +102,7 @@ def build_data_dict(min_x, max_x, min_y, max_y):
     ss.kill(a**2)
     ss.add_page({a: 0, t: 0})
     ss.add_page({a: 0, t: 0})
-    ss.add_page({t: a, t**2: 0})
+    ss.add_page({t: a, a: 0})
     p4 = ss.add_page()   # page 4
 
     data = {
@@ -109,10 +142,14 @@ def build_data_dict(min_x, max_x, min_y, max_y):
                 # no module at this bidegree → skip
                 continue
 
-            for col in range(module.sp_basis.cols):
+            nontrivial_coords = _quotient_basis_coords(module)
+            if len(nontrivial_coords) == 0:
+                continue
+
+            for col, abs_coord in enumerate(nontrivial_coords):
                 elem = HomoElem(
                     p4,
-                    abs_coordinate=module.sp_basis.col(col),
+                    abs_coordinate=abs_coord,
                     abs_bideg= Bidegree([x, y])
                 )
                 node_id = f"n_{x}_{y}_{col}"

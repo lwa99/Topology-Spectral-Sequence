@@ -14,7 +14,10 @@ class Differential:
         self.page = page
         self.domain = self.page.domain
         self.d_bidegree = d_bigrade
+        # Total knowledge base on this page:
+        # src -> d(src), plus bidegree-indexed views for fast lookups.
         self.info: dict[HomoElem, HomoElem] = {}
+        self.info_by_bideg: dict[Bidegree, dict[HomoElem, HomoElem]] = {}
         self.info_pairs: list[tuple[HomoElem, HomoElem]] = []
         self.info_collections: dict[Bidegree, HomoCollection] = {}
 
@@ -33,13 +36,17 @@ class Differential:
         """Validate one user-provided differential pair for obvious contradictions."""
         if src.isZero():
             if not tgt.isZero():
-                raise ValueError(f"Invalid differential data: d(0) must be 0, but got {tgt}.")
+                raise ValueError(
+                    f"Invalid differential data on page {self.page.page_num} at bidegree {src.bidegree}: "
+                    f"d(0) must be 0, but got {tgt}."
+                )
             return
 
         target_bideg = src.bidegree + self.d_bidegree
         if not tgt.isZero() and tgt.bidegree != target_bideg:
             raise ValueError(
-                "Invalid differential data bidegree mismatch: "
+                f"Invalid differential data bidegree mismatch on page {self.page.page_num} "
+                f"at source bidegree {src.bidegree}: "
                 f"d({src}) should land in bidegree {target_bideg}, but got {tgt.bidegree}."
             )
 
@@ -53,21 +60,28 @@ class Differential:
         self._validate_io_pair(src, tgt)
         if src in self.info:
             if self.info[src] != tgt:
-                raise ValueError(f"Conflicting differential data on source {src}: {self.info[src]} vs {tgt}.")
+                raise ValueError(
+                    f"Conflicting differential data on page {self.page.page_num} at source bidegree {src.bidegree} "
+                    f"for source {src}: {self.info[src]} vs {tgt}."
+                )
             return False
 
         self.info[src] = tgt
+        if src.bidegree not in self.info_by_bideg:
+            self.info_by_bideg[src.bidegree] = {}
+        self.info_by_bideg[src.bidegree][src] = tgt
         self.info_pairs.append((src, tgt))
-        self.info_collections.pop(src.bidegree, None)
+        # Leibniz propagation can create cross-bidegree dependencies; clear all cached slices.
+        self.info_collections.clear()
         return True
 
     def info_collection_at(self, bidegree):
         """Gather the known information correspond to the specified bidegree."""
         if bidegree in self.info_collections.keys():
             return self.info_collections[bidegree]
+        known_at_bideg = self.info_by_bideg.get(bidegree, {})
         info_collection = HomoCollection(page=self.page, bideg=bidegree,
-                                         coords=[src.coordinate for (src, _) in self.info_pairs
-                                                 if src.bidegree == bidegree])
+                                         coords=[src.coordinate for src in known_at_bideg.keys()])
         res = info_collection.join(self.page[bidegree].relation)
         self.info_collections[bidegree] = res
         return res
@@ -85,26 +99,89 @@ class Differential:
 
         dI_elems: list[HomoElem] = []
         for e in I.elems:
-            image = None
-            for src, tgt in self.info_pairs:
-                if src.bidegree == e.bidegree and src.coordinate == e.coordinate:
-                    image = tgt
-                    break
+            image = self.info.get(e)
 
             if image is None or image.isZero():
                 dI_elems.append(zero_target)
             else:
                 assert image.bidegree == target_bideg, \
-                    f"Known d-image has unexpected bidegree: got {image.bidegree}, expected {target_bideg}"
+                    (
+                        f"Known d-image has unexpected bidegree on page {self.page.page_num} "
+                        f"at source bidegree {bidegree}: got {image.bidegree}, expected {target_bideg}"
+                    )
                 dI_elems.append(image)
 
         d_I = HomoCollection(page=self.page, bideg=target_bideg, elems=dI_elems)
         return I, d_I, target_bideg
 
+    def factor_from_known(self, src: HomoElem, *, allow_unit_factor: bool = False):
+        """
+        Try to write src as a product of two known-source elements.
+
+        Return:
+            (left, right) if found, else None.
+        """
+        if src.isZero() or src.bidegree is None:
+            return None
+
+        for left_bideg, left_dict in self.info_by_bideg.items():
+            right_bideg = src.bidegree - left_bideg
+            right_dict = self.info_by_bideg.get(right_bideg)
+            if right_dict is None:
+                continue
+
+            for left in left_dict.keys():
+                if left.isZero():
+                    continue
+                if not allow_unit_factor and left.poly.total_degree() == 0:
+                    continue
+
+                for right in right_dict.keys():
+                    if right.isZero():
+                        continue
+                    if not allow_unit_factor and right.poly.total_degree() == 0:
+                        continue
+                    if left * right == src:
+                        return left, right
+        return None
+
+    def derive_by_leibniz(self, src: HomoElem):
+        """If src factors through known sources, derive d(src) via Leibniz."""
+        decomposition = self.factor_from_known(src)
+        if decomposition is None:
+            return None
+        left, right = decomposition
+        d_left = self.info.get(left)
+        d_right = self.info.get(right)
+        if d_left is None or d_right is None:
+            return None
+        return (left * d_right) + (d_left * right)
+
     def extend_by_forward_leibniz(self, bidegree):
-        pass
+        """
+        Iteratively add new known d-values at one bidegree using Leibniz from existing knowledge.
+        """
+        module = self.page[bidegree]
+        if module.span.is_empty:
+            return []
+
+        added: list[tuple[HomoElem, HomoElem]] = []
+        changed = True
+        while changed:
+            changed = False
+            for src in module.span.elems:
+                if src in self.info:
+                    continue
+                derived = self.derive_by_leibniz(src)
+                if derived is None:
+                    continue
+                if self._add_info_pair(src, derived):
+                    added.append((src, derived))
+                    changed = True
+        return added
 
     def info_complete(self, bidegree):
+        self.extend_by_forward_leibniz(bidegree)
         module = self.page[bidegree]
         if self.info_collection_at(bidegree).is_empty:
             return module.span.is_empty
@@ -126,6 +203,7 @@ class Differential:
         if module.span.is_empty:
             return []
 
+        self.extend_by_forward_leibniz(bidegree)
         n = module.S.shape[1]
         I = self.info_collection_at(bidegree)
 
@@ -137,7 +215,8 @@ class Differential:
             solved = SNF.solve(I_M, module.S)
             if solved is None:
                 raise ValueError(
-                    f"Known information at {bidegree} does not lie in source span; cannot complete info set."
+                    f"Known information on page {self.page.page_num} at bidegree {bidegree} "
+                    f"does not lie in source span; cannot complete info set."
                 )
             X = solved[0]
             D, U, _ = SNF.decomp(X)
@@ -159,21 +238,26 @@ class Differential:
 
         gens = ", ".join(str(g) for g in self.page.ss.gen)
         print(
-            f"Need {len(missing_indices)} additional differential value(s) at bidegree {bidegree}. "
+            f"Need {len(missing_indices)} additional differential value(s) on page {self.page.page_num} "
+            f"at bidegree {bidegree}. "
             f"Please enter each image using generators ({gens})."
         )
 
         added_pairs: list[tuple[HomoElem, HomoElem]] = []
         for idx in missing_indices:
             src = transformed_sources.elems[idx]
-            expr = input(f"Enter d({src}) [default 0]: ").strip()
+            expr = input(
+                f"[page {self.page.page_num}, bidegree {bidegree}] Enter d({src}) [default 0]: "
+            ).strip()
             if expr == "":
                 expr = "0"
             tgt = HomoElem(self.page, expr)
             if self._add_info_pair(src, tgt):
                 added_pairs.append((src, tgt))
 
-        self.info_collections.pop(bidegree, None)
+        # User input may unlock further sources via Leibniz at the same bidegree.
+        added_pairs.extend(self.extend_by_forward_leibniz(bidegree))
+        self.info_collections.clear()
         return added_pairs
 
     def refine_info_set(self, bidegree):
