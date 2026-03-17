@@ -1,6 +1,6 @@
-from matrices import *
+from src.matrices import *
 from sympy import ZZ
-from snf import SNFMatrix
+from src.snf import SNFMatrix
 
 def get_examples():
     examples = []

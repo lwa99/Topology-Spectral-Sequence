@@ -1,9 +1,9 @@
 from __future__ import annotations
 
-from element import Bidegree
-from page_and_module import Page
-from utilities import convex_integral_combinations, Poly
-from matrices import *
+from src.element import Bidegree
+from src.page_and_module import Page
+from src.utilities import convex_integral_combinations, Poly
+from src.matrices import *
 from sympy import Symbol
 from collections.abc import Iterable
 
@@ -27,6 +27,10 @@ class SpectralSequence:
 
         self.diff_bideg_coef = IM(diff_bideg_coef)
 
+    @staticmethod
+    def in_first_quadrant(bigrade: Bidegree) -> bool:
+        return bigrade[0] >= 0 and bigrade[1] >= 0
+
     @property
     def gen_num(self):
         return len(self.gen)
@@ -45,8 +49,8 @@ class SpectralSequence:
         """
         Calculate the first page kernel basis at a given bidegree from stored relations
         """
-        if bigrade[1] < 0:
-            return DM([], self.domain).columns()
+        if not self.in_first_quadrant(bigrade):
+            return []
 
         res = []
         for relation_poly in self.relations:
@@ -68,6 +72,8 @@ class SpectralSequence:
         return res
 
     def get_abs_basis(self, bigrade) -> tuple[tuple, ...]:
+        if not self.in_first_quadrant(bigrade):
+            return tuple()
         if bigrade in self.absolute_bases.keys():
             return self.absolute_bases[bigrade]
         else:
@@ -76,7 +82,7 @@ class SpectralSequence:
             return res
 
     def get_abs_dimension(self, bigrade: Bidegree):
-        if bigrade[1] < 0 or (bigrade[1] == 0 and bigrade[0] < 0):
+        if not self.in_first_quadrant(bigrade):
             return 0
         if bigrade[1] == bigrade[0] == 0:
             return 1  # the scalar space
@@ -127,8 +133,8 @@ class SpectralSequence:
 
 if __name__ == "__main__":
     from sympy.abc import symbols
-    from sympy import GF, ZZ
-    from element import HomoElem, HomoCollection
+    from sympy import ZZ
+    from src.element import HomoElem, HomoCollection
     a, t = symbols("a t")
     ss = SpectralSequence(
         ZZ,

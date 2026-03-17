@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from utilities import Matrix, convex_integral_combinations
+from src.utilities import Matrix, convex_integral_combinations
 from sympy.matrices.normalforms import smith_normal_decomp
 from sympy.polys.domains.domain import Domain
 from sympy.polys.polyerrors import ExactQuotientFailed

@@ -1,12 +1,12 @@
 from __future__ import annotations
 from typing import TYPE_CHECKING
 
-from snf import *
-from matrices import *
-from element import HomoElem, HomoCollection, Bidegree
+from src.snf import *
+from src.matrices import *
+from src.element import HomoElem, HomoCollection, Bidegree
 
 if TYPE_CHECKING:
-    from page_and_module import Page
+    from src.page_and_module import Page
 
 
 class Differential:
@@ -23,7 +23,12 @@ class Differential:
             src = HomoElem(page, key)
             tgt = HomoElem(page, value)
             self._add_info_pair(src, tgt)
-    
+
+        # In a unital setting, d(1) = 0 should always hold.
+        unit_src = HomoElem(page, 1)
+        unit_tgt = HomoElem(page, 0)
+        self._add_info_pair(unit_src, unit_tgt)
+
     def _validate_io_pair(self, src: HomoElem, tgt: HomoElem):
         """Validate one user-provided differential pair for obvious contradictions."""
         if src.isZero():
@@ -75,7 +80,7 @@ class Differential:
         target_bideg = bidegree + self.d_bidegree
 
         target_abs_dim = self.page.ss.get_abs_dimension(target_bideg)
-        zero_coord = DMatrix.from_list([[self.domain.zero] for _ in range(target_abs_dim)], self.domain)
+        zero_coord = DMatrix.zeros((target_abs_dim, 1), self.domain)
         zero_target = HomoElem(self.page, abs_bideg=target_bideg, abs_coordinate=zero_coord)
 
         dI_elems: list[HomoElem] = []

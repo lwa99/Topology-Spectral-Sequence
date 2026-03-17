@@ -5,7 +5,7 @@ if TYPE_CHECKING:
     from page import Page
     from src.element import HomoElem, Bidegree
 
-from utilities import Matrix, Vector
+from src.utilities import Matrix, Vector
 
 
 class Module:

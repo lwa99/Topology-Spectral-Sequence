@@ -1,14 +1,14 @@
 from __future__ import annotations
 from typing import TYPE_CHECKING
 
-from utilities import verify
-from matrices import *
+from src.utilities import verify
+from src.matrices import *
 from sympy import Poly, Expr
 from collections.abc import Iterable
-from snf import SNFMatrix
+from src.snf import SNFMatrix
 
 if TYPE_CHECKING:
-    from page_and_module import Page
+    from src.page_and_module import Page
 
 Bidegree = IMatrix
 
@@ -62,7 +62,8 @@ class HomoElem:
             self.bidegree, self.coordinate = ss.get_abs_info(self.poly)
 
     def isZero(self):
-        return self.bidegree is None
+        """This only cares about if the element is literally zero. We don't consider relations here."""
+        return self.poly.is_zero
 
     def __add__(self, other):
         return HomoElem(self.page, self.poly + other.poly)

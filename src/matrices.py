@@ -25,19 +25,28 @@ def DV(components: list, domain) -> 'DMatrix':
 
 
 def hstack(*args) -> Matrix:
-    non_empty_args = []
+    mats = []
     for m in args:
         if isinstance(m, _DMatrix):
             m = m.to_Matrix()
-        if m.rows != 0 and m.cols != 0:
-            non_empty_args.append(m)
+        mats.append(m)
+
+    if len(mats) == 0:
+        return Matrix([])
+
+    n_rows = mats[0].rows
+    total_cols = 0
+    for m in mats:
+        assert m.rows == n_rows
+        total_cols += m.cols
+
+    if n_rows == 0 or total_cols == 0:
+        return Matrix.zeros(n_rows, total_cols)
 
     rows = []
-    n_rows = non_empty_args[0].rows
     for i in range(n_rows):
         new_row = []
-        for m in non_empty_args:
-            assert m.rows == n_rows
+        for m in mats:
             new_row.extend(m.row(i))
         rows.append(new_row)
     return Matrix(rows)
@@ -64,7 +73,10 @@ class DMatrix(_DMatrix):
     @classmethod
     def from_Matrix(cls, M: MatrixBase, fmt='sparse', **kwargs):
         assert "domain" in kwargs.keys()
-        return cls.from_list(M.tolist(), **kwargs)
+        domain = kwargs["domain"]
+        rows = M.tolist()
+        domain_rows = [[domain(e) for e in row] for row in rows]
+        return cls(domain_rows, (M.rows, M.cols), domain)
 
     @classmethod
     def static_hstack(cls, A: 'DMatrix', *B: 'DMatrix') -> 'DMatrix':

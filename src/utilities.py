@@ -1,6 +1,6 @@
 from __future__ import annotations
 from sympy import Poly as _Poly
-from matrices import *
+from src.matrices import *
 
 verify = True
 

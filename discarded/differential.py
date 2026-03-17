@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from page import Page
 
-from utilities import Matrix, convex_integral_combinations
+from src.utilities import Matrix, convex_integral_combinations
 from src.element import HomoElem, Bidegree
 from sortedcontainers import SortedDict
 
