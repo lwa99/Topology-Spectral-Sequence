@@ -10,12 +10,18 @@ Now takes explicit chart bounds (min_x, max_x, min_y, max_y)
 and iterates over that grid, pulling out each module’s basis.
 """
 
+import os
 import sys
+
+# Support running as a script: `python src/main.py ...`
+if __package__ is None or __package__ == "":
+    repo_root = os.path.dirname(os.path.dirname(__file__))
+    if repo_root not in sys.path:
+        sys.path.insert(0, repo_root)
 from sympy.abc import symbols
-from sympy import GF
+from sympy import GF, ZZ
 from src.spectral_sequence import SpectralSequence
 from src.element import HomoElem, Bidegree
-from src.matrices import DMatrix
 from seqsee_main import process_data
 
 SCHEMA = {
@@ -56,43 +62,10 @@ SCHEMA = {
   ]
 }
 
-
-def _matrix_rank(M):
-    if M is None:
-        return 0
-    rows, cols = M.shape
-    if rows == 0 or cols == 0:
-        return 0
-    return M.rank()
-
-
-def _quotient_basis_coords(module):
-    """
-    Pick span vectors that form a basis of S/R in absolute coordinates.
-    This avoids SNF structural extraction, which currently hits assertion
-    failures on some edge cases.
-    """
-    if module.S is None:
-        return []
-
-    selected = []
-    current = module.R
-    current_rank = _matrix_rank(current)
-
-    for coord in module.span.coords:
-        candidate = coord if current is None else DMatrix.static_hstack(current, coord)
-        new_rank = _matrix_rank(candidate)
-        if new_rank > current_rank:
-            selected.append(coord)
-            current = candidate
-            current_rank = new_rank
-    return selected
-
-
 def build_data_dict(min_x, max_x, min_y, max_y):
     a, t = symbols("a t")
     ss = SpectralSequence(
-        GF(3),
+        ZZ,
         [a, t],
         [[3, 0], [0, 2]],
         [[1, 0],
@@ -142,7 +115,19 @@ def build_data_dict(min_x, max_x, min_y, max_y):
                 # no module at this bidegree → skip
                 continue
 
-            nontrivial_coords = _quotient_basis_coords(module)
+            structural = module.get_structural_information()
+            if structural is None:
+                continue
+            gens, torsion = structural
+            if callable(gens):
+                gens = gens()
+
+            # Keep only genuinely nontrivial quotient classes.
+            # `classify(g)==1` excludes generators that are already relation-trivial.
+            nontrivial_coords = [
+                g for g, t_info in zip(gens, torsion)
+                if (not ss.domain.is_unit(t_info)) and module.classify(g) == 1
+            ]
             if len(nontrivial_coords) == 0:
                 continue
 

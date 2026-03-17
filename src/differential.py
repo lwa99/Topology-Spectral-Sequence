@@ -220,7 +220,7 @@ class Differential:
                 )
             X = solved[0]
             D, U, _ = SNF.decomp(X)
-            U_inv = U.inv_den()[0]
+            U_inv = SNF.invert_unimodular(U)
             transformed_sources = HomoCollection.from_matrix(self.page, bidegree, module.S * U_inv)
 
             diag_len = min(D.shape[0], D.shape[1])

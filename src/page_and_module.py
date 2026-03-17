@@ -47,10 +47,13 @@ class Module:
             return None
 
         if self.R is None:
-            return self.S.columns, [self.domain.zero] * self.S.shape[1]
+            return self.S.columns(), [self.domain.zero] * self.S.shape[1]
 
         P, Q, D = SNF.align(self.R, self.S)
-        return (self.S * Q).columns, D.diagonal() + [self.domain.zero] * (self.S.shape[1] - self.R.shape[1])
+        gens = (self.S * Q).columns()
+        diag = D.diagonal()
+        torsion = [diag[i] if i < len(diag) else self.domain.zero for i in range(len(gens))]
+        return gens, torsion
 
     def classify(self, v: DMatrix):
         """Classify a coordinate vector in this module.
@@ -135,7 +138,8 @@ class Module:
         else:
             y = HomoCollection(page=self.page, bideg=rhs.bideg, elems=y_known_elems)
 
-        return y * Q.inv_den()[0]
+        Q_inv = SNF.invert_unimodular(Q)
+        return y * Q_inv
 
     def get_diff_ker(self):
         """
