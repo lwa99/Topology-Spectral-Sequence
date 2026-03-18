@@ -228,11 +228,17 @@ class Page:
         if solve_res is None:
             return None, None
         combined_coord, ker = solve_res
-        coord_in_S = combined_coord.to_list()[:len(xS_q)]
-        abs_coord = M_q.S * DMatrix.from_list(coord_in_S, self.domain)
-        q = HomoElem(self, abs_bideg=q_bideg, abs_coordinate=abs_coord)
 
         source_col_num = len(xS_q)
+        if source_col_num == 0:
+            q_abs_dim = self.ss.get_abs_dimension(q_bideg)
+            q_zero_coord = DMatrix.zeros((q_abs_dim, 1), self.domain)
+            q = HomoElem(self, abs_bideg=q_bideg, abs_coordinate=q_zero_coord)
+        else:
+            coord_in_S = combined_coord.to_list()[:source_col_num]
+            abs_coord = M_q.S * DMatrix.from_list(coord_in_S, self.domain)
+            q = HomoElem(self, abs_bideg=q_bideg, abs_coordinate=abs_coord)
+
         if source_col_num == 0:
             q_abs_dim = self.ss.get_abs_dimension(q_bideg)
             K_raw = DMatrix.zeros((q_abs_dim, 0), self.domain)
@@ -285,4 +291,3 @@ class Page:
         """Divide the i-th element in X by the i-th element in l and form a new HomoCollection."""
         elems = [self.divide(l[i], x)[0] for (i, x) in enumerate(X.elems)]
         return HomoCollection(page=self, bideg=X.bideg, elems=elems)
-

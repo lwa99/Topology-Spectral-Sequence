@@ -1,7 +1,5 @@
 from __future__ import annotations
-from dataclasses import dataclass
 from typing import TYPE_CHECKING
-from sympy.polys.polyerrors import ExactQuotientFailed
 
 from src.snf import *
 from src.matrices import *
@@ -11,25 +9,13 @@ if TYPE_CHECKING:
     from src.page_and_module import Page
 
 
-@dataclass(frozen=True)
-class DiffDivisionEdge:
-    """Edge metadata for divisibility among known differential sources."""
-    parent: HomoElem
-    child: HomoElem
-    quotient: HomoElem
-    is_unique: bool
-
-
 class DiffInfo:
     """
-    Differential knowledge base.
+    Differential knowledge base with a distinguished lowest-level source set.
 
-    Stores known source->target differential values and maintains a divisibility
-    graph over known sources. If a divides b, then a is recorded as a child of b.
-
-    Notes:
-    - This class is add-only.
-    - Divisibility is currently checked by exact polynomial quotient.
+    This class is add-only. It stores known source->target differential values,
+    and keeps `lowest`: nontrivial known sources that are not currently recovered
+    as products of known sources via divide/reverse-Leibniz inference.
     """
 
     def __init__(self, differential: Differential):
@@ -38,8 +24,8 @@ class DiffInfo:
         self.domain = differential.domain
         self._info: dict[HomoElem, HomoElem] = {}
         self._info_by_bideg: dict[Bidegree, dict[HomoElem, HomoElem]] = {}
-        self._children: dict[HomoElem, dict[HomoElem, DiffDivisionEdge]] = {}
-        self._parents: dict[HomoElem, dict[HomoElem, DiffDivisionEdge]] = {}
+        self._lowest: set[HomoElem] = set()
+        self._reason: dict[HomoElem, str] = {}
 
     def __len__(self):
         return len(self._info)
@@ -65,21 +51,217 @@ class DiffInfo:
     def targets_at(self, bidegree: Bidegree):
         return list(self._info_by_bideg.get(bidegree, {}).values())
 
-    def children_of(self, parent: HomoElem):
-        return list(self._children.get(parent, {}).values())
+    def lowest_sources(self):
+        return list(self._lowest)
 
-    def parents_of(self, child: HomoElem):
-        return list(self._parents.get(child, {}).values())
+    def lowest_sources_at(self, bidegree: Bidegree):
+        return [s for s in self._lowest if s.bidegree == bidegree]
 
-    def edges(self):
-        out = []
-        for child_map in self._children.values():
-            out.extend(child_map.values())
-        return out
+    def reason_of(self, src: HomoElem):
+        return self._reason.get(src)
+
+    @staticmethod
+    def _is_unique_kernel(K: DMatrix | None, domain) -> bool:
+        if K is None:
+            return False
+        if K.shape[1] == 0:
+            return True
+        return all(x == domain.zero for x in K.to_list_flat())
+
+    def _is_nontrivial(self, e: HomoElem) -> bool:
+        if e.isZero():
+            return False
+        if e.poly.total_degree() != 0:
+            return True
+        terms = e.poly.terms()
+        if len(terms) != 1:
+            return False
+        coef = terms[0][1]
+        return not self.domain.is_unit(coef)
+
+    def _kernel_gens(self, bidegree: Bidegree, K: DMatrix | None):
+        if K is None or K.shape[1] == 0:
+            return []
+        return HomoCollection.from_matrix(self.page, bidegree, K).elems
+
+    def _constant_content_nonunit(self, e: HomoElem):
+        """
+        Return a non-unit common coefficient of all terms of e, if any.
+
+        For example over ZZ:
+          2*a -> 2
+          6*a + 4*b -> 2
+          a + 2*b -> None
+        """
+        if e.isZero():
+            return None
+        terms = e.poly.terms()
+        if len(terms) == 0:
+            return None
+        c = terms[0][1]
+        for _, coef in terms[1:]:
+            c = self.domain.gcd(c, coef)
+        if self.domain.is_ZZ and c < 0:
+            c = -c
+        if c == self.domain.zero or self.domain.is_unit(c):
+            return None
+        return c
+
+    def _infer_from_constant_coeff(self, src: HomoElem, tgt: HomoElem, _seen: set[HomoElem]):
+        """
+        If src = c * q with non-unit scalar c and both divides are unique,
+        infer d(q) = tgt / c and cache it recursively.
+        """
+        c = self._constant_content_nonunit(src)
+        if c is None:
+            return
+
+        c_elem = HomoElem(self.page, self.domain.to_sympy(c))
+        q_src, K_src = self.page.divide(c_elem, src)
+        if q_src is None or not self._is_unique_kernel(K_src, self.domain):
+            return
+        if tgt.isZero():
+            q_tgt = HomoElem(self.page, 0)
+        else:
+            q_tgt, K_tgt = self.page.divide(c_elem, tgt)
+            if q_tgt is None or not self._is_unique_kernel(K_tgt, self.domain):
+                return
+
+        self.add_known(
+            q_src,
+            q_tgt,
+            reason=f"const_divide:{c}",
+            propagate=True,
+            _seen=_seen,
+        )
+
+    def _solve_unique(self, left: HomoElem, rhs: HomoElem, *, rhs_bideg: Bidegree | None = None):
+        if rhs.isZero() and rhs_bideg is not None:
+            abs_dim = self.page.ss.get_abs_dimension(rhs_bideg)
+            zero_coord = DMatrix.zeros((abs_dim, 1), self.domain)
+            rhs_use = HomoElem(self.page, abs_bideg=rhs_bideg, abs_coordinate=zero_coord)
+        else:
+            rhs_use = rhs
+
+        q, K = self.page.divide(left, rhs_use)
+        if q is None:
+            return None
+        if not self._is_unique_kernel(K, self.domain):
+            return None
+        return q
+
+    def _equal_up_to_relations(self, lhs: HomoElem, rhs: HomoElem, bidegree: Bidegree):
+        diff = lhs - rhs
+        if diff.isZero():
+            return True
+        return self.page[bidegree].classify(diff.coordinate) == 0
+
+    def _recover_factors_via_left(self, product: HomoElem, left: HomoElem):
+        """
+        Try to recover d(q0) and d(k_j) from a known pair product = left * q.
+
+        Return:
+            (q0, dq0, kernel_pairs) on success, else None
+            where kernel_pairs = [(k_j, d(k_j)), ...]
+        """
+        d_product = self._info.get(product)
+        d_left = self._info.get(left)
+        if d_product is None or d_left is None:
+            return None
+
+        q0, Kq = self.page.divide(left, product)
+        if q0 is None:
+            return None
+        if not self._is_nontrivial(left) or not self._is_nontrivial(q0):
+            return None
+
+        target_bideg = product.bidegree + self.differential.d_bidegree
+        rhs0 = d_product - (d_left * q0)
+        dq0 = self._solve_unique(left, rhs0, rhs_bideg=target_bideg)
+        if dq0 is None:
+            return None
+
+        q_bideg = product.bidegree - left.bidegree
+        kernel_pairs: list[tuple[HomoElem, HomoElem]] = []
+        for k in self._kernel_gens(q_bideg, Kq):
+            if k.isZero():
+                continue
+            rhs_k = HomoElem(self.page, 0) - (d_left * k)
+            dk = self._solve_unique(left, rhs_k, rhs_bideg=target_bideg)
+            if dk is None:
+                return None
+            kernel_pairs.append((k, dk))
+
+        return q0, dq0, kernel_pairs
+
+    def _try_factor_and_cache(self, product: HomoElem, left: HomoElem, _seen: set[HomoElem]):
+        recovered = self._recover_factors_via_left(product, left)
+        if recovered is None:
+            return False
+        q0, dq0, kernel_pairs = recovered
+
+        self.add_known(
+            q0,
+            dq0,
+            reason=f"reverse_leibniz:{left}|{product}",
+            propagate=True,
+            _seen=_seen,
+        )
+        for k, dk in kernel_pairs:
+            self.add_known(
+                k,
+                dk,
+                reason=f"reverse_leibniz_kernel:{left}|{product}",
+                propagate=True,
+                _seen=_seen,
+            )
+        return True
+
+    def _update_from_new_known(self, src: HomoElem, _seen: set[HomoElem]):
+        if not self._is_nontrivial(src):
+            self._lowest.discard(src)
+            return
+
+        represented_by_known = False
+        current_lowest = list(self._lowest)
+        for left in current_lowest:
+            if left is src:
+                continue
+            if left not in self._info:
+                continue
+            if self._try_factor_and_cache(src, left, _seen):
+                represented_by_known = True
+
+        if represented_by_known:
+            self._lowest.discard(src)
+        else:
+            self._lowest.add(src)
+
+        # Keep lowest as an anti-chain: if src can represent an old lowest
+        # element through known factors, that old element is no longer lowest.
+        for old in list(self._lowest):
+            if old is src:
+                continue
+            if old not in self._info:
+                self._lowest.discard(old)
+                continue
+            if self._try_factor_and_cache(old, src, _seen):
+                self._lowest.discard(old)
 
     def add(self, src: HomoElem, tgt: HomoElem) -> bool:
+        return self.add_known(src, tgt, reason="manual", propagate=True)
+
+    def add_known(
+        self,
+        src: HomoElem,
+        tgt: HomoElem,
+        *,
+        reason: str = "manual",
+        propagate: bool = True,
+        _seen: set[HomoElem] | None = None,
+    ) -> bool:
         """
-        Add one known differential value and update the divisibility graph.
+        Add one known differential value and optionally propagate inference.
 
         Returns:
             True iff this source is newly added.
@@ -97,49 +279,85 @@ class DiffInfo:
         if src.bidegree not in self._info_by_bideg:
             self._info_by_bideg[src.bidegree] = {}
         self._info_by_bideg[src.bidegree][src] = tgt
-        self._update_division_graph_for(src)
+        self._reason[src] = reason
+
+        if propagate:
+            if _seen is None:
+                _seen = set()
+            if src in _seen:
+                return True
+            _seen.add(src)
+            try:
+                self._infer_from_constant_coeff(src, tgt, _seen)
+                self._update_from_new_known(src, _seen)
+            finally:
+                _seen.remove(src)
         return True
 
-    def _record_edge(self, parent: HomoElem, child: HomoElem, quotient: HomoElem, is_unique: bool):
-        edge = DiffDivisionEdge(parent=parent, child=child, quotient=quotient, is_unique=is_unique)
-        if parent not in self._children:
-            self._children[parent] = {}
-        self._children[parent][child] = edge
-        if child not in self._parents:
-            self._parents[child] = {}
-        self._parents[child][parent] = edge
+    def query_d(self, src: HomoElem, _seen: set[HomoElem] | None = None):
+        """
+        Try to compute d(src) from known values by product decomposition
+        against lowest-level elements.
 
-    def _exact_division(self, divisor: HomoElem, dividend: HomoElem):
-        """Return (quotient, unique) if divisor divides dividend exactly, else None."""
-        if divisor.isZero():
+        On success, caches the result through add_known(..., reason="query").
+        """
+        known = self._info.get(src)
+        if known is not None:
+            return known
+        if src.isZero():
+            return HomoElem(self.page, 0)
+
+        if _seen is None:
+            _seen = set()
+        if src in _seen:
             return None
-        if dividend.isZero():
-            return HomoElem(self.page, 0), True
+
+        _seen.add(src)
         try:
-            q_poly = dividend.poly.exquo(divisor.poly)
-        except ExactQuotientFailed:
+            target_bideg = src.bidegree + self.differential.d_bidegree
+            for left in list(self._lowest):
+                d_left = self._info.get(left)
+                if d_left is None:
+                    continue
+                if not self._is_nontrivial(left):
+                    continue
+
+                q0, Kq = self.page.divide(left, src)
+                if q0 is None:
+                    continue
+                if not self._is_nontrivial(q0):
+                    continue
+
+                dq0 = self.query_d(q0, _seen)
+                if dq0 is None:
+                    continue
+
+                q_bideg = src.bidegree - left.bidegree
+                dk_map: dict[HomoElem, HomoElem] = {}
+                ok = True
+                for k in self._kernel_gens(q_bideg, Kq):
+                    dk = self.query_d(k, _seen)
+                    if dk is None:
+                        ok = False
+                        break
+                    dk_map[k] = dk
+                if not ok:
+                    continue
+
+                candidate = (left * dq0) + (d_left * q0)
+                for k, dk in dk_map.items():
+                    alt = (left * (dq0 + dk)) + (d_left * (q0 + k))
+                    if not self._equal_up_to_relations(candidate, alt, target_bideg):
+                        ok = False
+                        break
+                if not ok:
+                    continue
+
+                self.add_known(src, candidate, reason="query", propagate=True, _seen=_seen)
+                return self._info[src]
             return None
-        except Exception:
-            return None
-        return HomoElem(self.page, q_poly.as_expr()), True
-
-    def _update_division_graph_for(self, new_src: HomoElem):
-        known = list(self._info.keys())
-        for other in known:
-            if other is new_src:
-                continue
-
-            # new_src divides other => new_src is a child of other
-            res = self._exact_division(new_src, other)
-            if res is not None:
-                q, unique = res
-                self._record_edge(parent=other, child=new_src, quotient=q, is_unique=unique)
-
-            # other divides new_src => other is a child of new_src
-            res = self._exact_division(other, new_src)
-            if res is not None:
-                q, unique = res
-                self._record_edge(parent=new_src, child=other, quotient=q, is_unique=unique)
+        finally:
+            _seen.remove(src)
 
 
 class Differential:
@@ -193,6 +411,8 @@ class Differential:
             True iff a new source was added.
         """
         self._validate_io_pair(src, tgt)
+        # Keep mirrors synchronized in case DiffInfo inferred values recursively.
+        self._merge_from_diff_info()
         if src in self.info:
             if self.info[src] != tgt:
                 raise ValueError(
@@ -201,14 +421,37 @@ class Differential:
                 )
             return False
 
-        self.info[src] = tgt
-        if src.bidegree not in self.info_by_bideg:
-            self.info_by_bideg[src.bidegree] = {}
-        self.info_by_bideg[src.bidegree][src] = tgt
-        # Leibniz propagation can create cross-bidegree dependencies; clear all cached slices.
-        self.info_collections.clear()
-        self.diff_span_cache.clear()
-        return True
+        added = self.diff_info.add_known(src, tgt, reason="manual", propagate=True)
+        self._merge_from_diff_info()
+        return added
+
+    def _merge_from_diff_info(self) -> bool:
+        """
+        Merge knowledge inferred/stored in DiffInfo into Differential mirrors.
+
+        Returns:
+            True iff any new source was merged.
+        """
+        changed = False
+        for src, tgt in self.diff_info.items():
+            if src in self.info:
+                if self.info[src] != tgt:
+                    raise ValueError(
+                        f"Conflicting differential data on page {self.page.page_num} at source bidegree {src.bidegree} "
+                        f"for source {src}: {self.info[src]} vs {tgt}."
+                    )
+                continue
+            self.info[src] = tgt
+            if src.bidegree not in self.info_by_bideg:
+                self.info_by_bideg[src.bidegree] = {}
+            self.info_by_bideg[src.bidegree][src] = tgt
+            changed = True
+
+        if changed:
+            # New knowledge can affect all cached slices and inferred spans.
+            self.info_collections.clear()
+            self.diff_span_cache.clear()
+        return changed
 
     def info_collection_at(self, bidegree):
         """Gather the known information correspond to the specified bidegree."""
@@ -248,82 +491,6 @@ class Differential:
 
         d_I = HomoCollection(page=self.page, bideg=target_bideg, elems=dI_elems)
         return I, d_I, target_bideg
-
-    def factor_from_known(self, src: HomoElem, *, allow_unit_factor: bool = False):
-        """
-        Try to write src as a product of two known-source elements.
-
-        Return:
-            (left, right) if found, else None.
-        """
-        if src.isZero() or src.bidegree is None:
-            return None
-
-        for left_bideg, left_dict in self.info_by_bideg.items():
-            right_bideg = src.bidegree - left_bideg
-            right_dict = self.info_by_bideg.get(right_bideg)
-            if right_dict is None:
-                continue
-
-            for left in left_dict.keys():
-                if left.isZero():
-                    continue
-                if not allow_unit_factor and left.poly.total_degree() == 0:
-                    continue
-
-                for right in right_dict.keys():
-                    if right.isZero():
-                        continue
-                    if not allow_unit_factor and right.poly.total_degree() == 0:
-                        continue
-                    if left * right == src:
-                        return left, right
-        return None
-
-    def derive_by_leibniz(self, src: HomoElem):
-        """If src factors through known sources, derive d(src) via Leibniz."""
-        decomposition = self.factor_from_known(src)
-        if decomposition is None:
-            return None
-        left, right = decomposition
-        d_left = self.info.get(left)
-        d_right = self.info.get(right)
-        if d_left is None or d_right is None:
-            return None
-        return (left * d_right) + (d_left * right)
-
-    def extend_by_forward_leibniz(self, bidegree):
-        """
-        Iteratively add new known d-values at one bidegree using Leibniz from existing knowledge.
-        """
-        module = self.page[bidegree]
-        if module.span.is_empty:
-            return []
-
-        added: list[tuple[HomoElem, HomoElem]] = []
-        changed = True
-        while changed:
-            changed = False
-            for src in module.span.elems:
-                if src in self.info:
-                    continue
-                derived = self.derive_by_leibniz(src)
-                if derived is None:
-                    continue
-                if self._add_info_pair(src, derived):
-                    added.append((src, derived))
-                    changed = True
-        return added
-
-    def info_complete(self, bidegree):
-        if bidegree in self.diff_span_cache:
-            return True
-        self.extend_by_forward_leibniz(bidegree)
-        dS, missing = self._infer_diff_span_from_current_info(bidegree)
-        if dS is None:
-            return False
-        self.diff_span_cache[bidegree] = dS
-        return len(missing) == 0
 
     @staticmethod
     def _dedupe_elems(elems: list[HomoElem]) -> list[HomoElem]:
@@ -495,11 +662,30 @@ class Differential:
 
         added_pairs: list[tuple[HomoElem, HomoElem]] = []
         while True:
-            added_pairs.extend(self.extend_by_forward_leibniz(bidegree))
+            # Legacy forward-Leibniz expansion intentionally disabled:
+            # added_pairs.extend(self.extend_by_forward_leibniz(bidegree))
+            for src in module.span.elems:
+                if src in self.info:
+                    continue
+                inferred = self.diff_info.query_d(src)
+                if inferred is not None:
+                    added_pairs.append((src, inferred))
+            self._merge_from_diff_info()
+
             dS, missing_sources = self._infer_diff_span_from_current_info(bidegree)
             if dS is not None:
                 self.diff_span_cache[bidegree] = dS
                 return added_pairs
+
+            inferred_any = False
+            for src in missing_sources:
+                if src in self.info:
+                    continue
+                if self.diff_info.query_d(src) is not None:
+                    inferred_any = True
+            if inferred_any:
+                self._merge_from_diff_info()
+                continue
 
             gens = ", ".join(str(g) for g in self.page.ss.gen)
             print(

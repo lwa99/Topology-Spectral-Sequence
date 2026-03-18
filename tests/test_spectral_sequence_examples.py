@@ -112,8 +112,10 @@ def test_leibniz_derives_t_squared_on_example_5():
     t2 = HomoElem(p3, t**2)
     assert t2 not in p3.d.info
 
-    p3.d.extend_by_forward_leibniz(IV([0, 4]))
+    inferred = p3.d.diff_info.query_d(t2)
+    p3.d._merge_from_diff_info()
 
+    assert inferred is not None
     assert t2 in p3.d.info
     assert p3.d.info[t2] == HomoElem(p3, 2 * a * t)
 
