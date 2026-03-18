@@ -75,7 +75,7 @@ def build_data_dict(min_x, max_x, min_y, max_y):
     ss.kill(a**2)
     ss.add_page({a: 0, t: 0})
     ss.add_page({a: 0, t: 0})
-    ss.add_page({t: a, a: 0})
+    ss.add_page({t: a, 2*a: 0, a*t: a**2})
     p4 = ss.add_page()   # page 4
 
     data = {

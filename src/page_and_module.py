@@ -77,69 +77,14 @@ class Module:
             return 1
         return 0
 
-    def get_diff_span(self, I: HomoCollection, d_I: HomoCollection):
+    def get_diff_span(self, I: HomoCollection = None, d_I: HomoCollection = None):
         """
-        Given I and d(I), compute d(S)
+        Return d(S) for this module's span generators.
+
+        The computation now lives in Differential.complete_info_set()/get_diff_span(),
+        so I and d_I are ignored and kept only for backward compatibility.
         """
-        if not self.page.d.info_complete(self.bideg):
-            self.page.d.complete_info_set(self.bideg)
-            I, d_I, _ = self.page.d.info_with_images_at(self.bideg)
-        if I.is_empty:
-            return HomoCollection(coords=[], bideg=d_I.bideg, page=d_I.page)
-        I_M = I.to_matrix()
-        P, Q, D = SNF.align(I_M, self.S)
-        # P, Q, D = self.S.align(I)
-        print(D.diagonal())
-        rhs = d_I * P
-
-        # If D has shape (n, m), we solve Y * D = rhs where Y has n columns.
-        # Columns beyond min(n,m) in rhs must be zero (D has zero columns there).
-        n, m = D.shape
-        diag_len = min(n, m)
-        rhs_cols = rhs.elems
-        target_abs_dim = self.page.ss.get_abs_dimension(rhs.bideg)
-        zero_coord = DMatrix.zeros((target_abs_dim, 1), self.domain)
-        zero_elem = HomoElem(self.page, abs_bideg=rhs.bideg, abs_coordinate=zero_coord)
-
-        y_known_elems: list[HomoElem] = []
-        for i in range(diag_len):
-            d_i = D[i, i].element
-            rhs_i = rhs_cols[i]
-            if d_i == self.domain.zero:
-                if not rhs_i.isZero():
-                    raise ValueError(
-                        f"Inconsistent differential alignment on page {self.page.page_num} "
-                        f"at bidegree {self.bideg}: expected zero rhs at diagonal index {i}."
-                    )
-                y_known_elems.append(zero_elem)
-            else:
-                divider = HomoElem(self.page, self.domain.to_sympy(d_i))
-                q = self.page.divide(divider, rhs_i)
-                if q is None:
-                    raise ValueError(
-                        f"Cannot divide differential image by diagonal entry at index {i} "
-                        f"on page {self.page.page_num} at bidegree {self.bideg}."
-                    )
-                y_known_elems.append(q)
-
-        # Consistency for rhs columns not controlled by diagonal entries.
-        for j in range(diag_len, len(rhs_cols)):
-            if not rhs_cols[j].isZero():
-                raise ValueError(
-                    f"Inconsistent differential alignment on page {self.page.page_num} "
-                    f"at bidegree {self.bideg}: nonzero rhs column {j} "
-                    f"outside diagonal part of D with shape {D.shape}."
-                )
-
-        # Extend Y with zero columns when D has more rows than columns.
-        if n > diag_len:
-            y_elems = y_known_elems + [zero_elem] * (n - diag_len)
-            y = HomoCollection(page=self.page, bideg=rhs.bideg, elems=y_elems)
-        else:
-            y = HomoCollection(page=self.page, bideg=rhs.bideg, elems=y_known_elems)
-
-        Q_inv = SNF.invert_unimodular(Q)
-        return y * Q_inv
+        return self.page.d.get_diff_span(self.bideg)
 
     def get_diff_ker(self):
         """
@@ -153,13 +98,9 @@ class Module:
         if self.span.is_empty:
             return self.relation
 
-        if not self.page.d.info_complete(self.bideg):
-            self.page.d.complete_info_set(self.bideg)
-
-        I, d_I, target_bideg = self.page.d.info_with_images_at(self.bideg)
+        target_bideg = self.bideg + self.page.d.d_bidegree
         target_module = self.page[target_bideg]
-
-        dS = self.get_diff_span(I, d_I)
+        dS = self.page.d.get_diff_span(self.bideg)
         dS_M = dS.to_matrix()
 
         # Number of source span generators (columns of S).
@@ -241,37 +182,35 @@ class Page:
         if self.ss.get_abs_dimension(incoming_source_bideg) == 0:
             incoming_image = HomoCollection(page=prev_page, bideg=bidegree, coords=[])
         else:
-            incoming_source_module = prev_page[incoming_source_bideg]
-            if not prev_page.d.info_complete(incoming_source_bideg):
-                prev_page.d.complete_info_set(incoming_source_bideg)
-            I_in, dI_in, incoming_target_bideg = prev_page.d.info_with_images_at(incoming_source_bideg)
+            incoming_image = prev_page.d.get_diff_span(incoming_source_bideg)
+            incoming_target_bideg = incoming_image.bideg
             assert incoming_target_bideg == bidegree, (
                 f"Incoming differential target mismatch while building page {self.page_num} "
                 f"at bidegree {bidegree}: expected target {bidegree}, got {incoming_target_bideg} "
                 f"from page {prev_page.page_num}."
             )
-            incoming_image = incoming_source_module.get_diff_span(I_in, dI_in)
 
         # Keep previous-page relations as zero in absolute coordinates of the new page.
         relations = incoming_image.join(prev_module_at_bideg.relation)
         return Module(self, bidegree, outgoing_kernel.coords, relations.coords)
 
-    def divide(self, x: HomoElem, y: HomoElem, *, return_uniqueness: bool = False):
+    def divide(self, x: HomoElem, y: HomoElem):
         """
         Find q such that xq = y in the target module.
 
         Args:
             x: divider element
             y: dividend element
-            return_uniqueness: if True, also return whether q is unique up to relations
 
         Returns:
-            - if return_uniqueness is False: q or None
-            - if return_uniqueness is True: (q_or_none, is_unique_up_to_relations)
+            (q_or_none, K_or_none) where:
+            - q_or_none is one particular solution (None if unsolvable)
+            - K_or_none generates the quotient ambiguity span(K_raw)/span(R_q),
+              where K_raw is the full solution-difference kernel in absolute
+              coordinates and R_q are relations in the quotient module.
         """
         q_bideg = y.bidegree - x.bidegree
         M_q, M_y = self[q_bideg], self[y.bidegree]
-        print("in divide", y, M_q.dim)
         xS_q = x * M_q.span
         xS_q_with_rel = xS_q.join(M_y.relation)
 
@@ -280,43 +219,70 @@ class Page:
                 q_abs_dim = self.ss.get_abs_dimension(q_bideg)
                 q_zero_coord = DMatrix.zeros((q_abs_dim, 1), self.domain)
                 q = HomoElem(self, abs_bideg=q_bideg, abs_coordinate=q_zero_coord)
-                if return_uniqueness:
-                    return q, True
-                return q
+                K = DMatrix.zeros((q_abs_dim, 0), self.domain)
+                return q, K
             else:
-                if return_uniqueness:
-                    return None, False
-                return None
+                return None, None
 
         solve_res = SNF.solve(y.coordinate, xS_q_with_rel.to_matrix())
         if solve_res is None:
-            if return_uniqueness:
-                return None, False
-            return None
+            return None, None
         combined_coord, ker = solve_res
         coord_in_S = combined_coord.to_list()[:len(xS_q)]
         abs_coord = M_q.S * DMatrix.from_list(coord_in_S, self.domain)
         q = HomoElem(self, abs_bideg=q_bideg, abs_coordinate=abs_coord)
 
-        # Uniqueness up to relations:
-        # q is unique mod relations iff every projected kernel direction is relation-trivial in M_q.
-        is_unique_up_to_rel = True
         source_col_num = len(xS_q)
-        for j in range(ker.shape[1]):
-            delta_coeff = ker.extract(list(range(source_col_num)), [j])
-            if source_col_num == 0:
-                continue
-            delta_abs = M_q.S * delta_coeff
-            if M_q.classify(delta_abs) != 0:
-                is_unique_up_to_rel = False
-                break
+        if source_col_num == 0:
+            q_abs_dim = self.ss.get_abs_dimension(q_bideg)
+            K_raw = DMatrix.zeros((q_abs_dim, 0), self.domain)
+        else:
+            ker_coeff = ker.extract(list(range(source_col_num)), list(range(ker.shape[1])))
+            K_raw = M_q.S * ker_coeff
+        K_mod_rel = self._kernel_mod_relations(K_raw, M_q)
+        return q, K_mod_rel
 
-        if return_uniqueness:
-            return q, is_unique_up_to_rel
-        return q
+    def _kernel_mod_relations(self, K_raw: DMatrix, M_q: Module) -> DMatrix:
+        """
+        Reduce raw kernel ambiguity by quotient-module relations.
+
+        Input:
+            K_raw: generators of solution differences in absolute coordinates.
+            M_q:   module where the quotient lives.
+
+        Return:
+            Generators representing span(K_raw)/span(R_q), where R_q = M_q.R.
+        """
+        if K_raw.shape[1] == 0:
+            return K_raw
+        if M_q.R is None or M_q.R.shape[1] == 0:
+            return K_raw
+
+        # Expected in well-defined module actions: quotient relations are
+        # among solution-difference directions.
+        solved = SNF.solve(M_q.R, K_raw)  # M_q.R = K_raw * X
+        assert solved is not None, (
+            "Expected quotient-module relations to lie in the divide-kernel ambiguity, "
+            f"but failed for bidegree {M_q.bideg} on page {self.page_num}."
+        )
+        X = solved[0]
+        _, Q, D = SNF.align(M_q.R, K_raw, _X=X)
+        K_aligned = K_raw * Q
+
+        diag_len = min(D.shape)
+        keep_indices = []
+        for i in range(K_aligned.shape[1]):
+            if i < diag_len and self.domain.is_unit(D[i, i].element):
+                # Unit diagonal means this direction is already in R_q.
+                continue
+            keep_indices.append(i)
+
+        if len(keep_indices) == 0:
+            return DMatrix.zeros((K_raw.shape[0], 0), self.domain)
+        return K_aligned.extract_columns(keep_indices)
 
     def collection_divide_by(self, X: HomoCollection, l: list[HomoElem]):
         """Divide the i-th element in X by the i-th element in l and form a new HomoCollection."""
-        elems = [self.divide(l[i], x) for (i, x) in enumerate(X.elems)]
+        elems = [self.divide(l[i], x)[0] for (i, x) in enumerate(X.elems)]
         return HomoCollection(page=self, bideg=X.bideg, elems=elems)
 
