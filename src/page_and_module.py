@@ -40,20 +40,39 @@ class Module:
 
     def get_structural_information(self):
         """
-        Return a list of generators and their corresponding torsion information.
-        Free part is followed by torsion part and marked by torsion 0.
+        Return nontrivial generators and their torsion data.
+
+        We first replace the raw span matrix by a basis of its column module.
+        Aligning relations directly against an arbitrary spanning set can
+        introduce spurious free summands when the span columns are dependent.
         """
         if self.S is None:
             return None
 
-        if self.R is None:
-            return self.S.columns(), [self.domain.zero] * self.S.shape[1]
+        diag_s = self.S.D.diagonal()
+        rank = sum(1 for x in diag_s if x != self.domain.zero)
+        if rank == 0:
+            return [], []
 
-        P, Q, D = SNF.align(self.R, self.S)
-        gens = (self.S * Q).columns()
+        span_basis = (self.S * self.S.V).extract_columns(list(range(rank)))
+
+        if self.R is None:
+            return span_basis.columns(), [self.domain.zero] * rank
+
+        P, Q, D = SNF.align(self.R, span_basis)
+        gens = (span_basis * Q).columns()
         diag = D.diagonal()
         torsion = [diag[i] if i < len(diag) else self.domain.zero for i in range(len(gens))]
-        return gens, torsion
+
+        filtered = [
+            (g, t_info) for g, t_info in zip(gens, torsion)
+            if not self.domain.is_unit(t_info)
+        ]
+        if len(filtered) == 0:
+            return [], []
+
+        gens, torsion = zip(*filtered)
+        return list(gens), list(torsion)
 
     def classify(self, v: DMatrix):
         """Classify a coordinate vector in this module.
