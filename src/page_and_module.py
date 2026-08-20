@@ -267,6 +267,20 @@ class Page:
         K_mod_rel = self._kernel_mod_relations(K_raw, M_q)
         return q, K_mod_rel
 
+    def _kernel_unique_mod_relations(self, K_raw: DMatrix, M_q: Module) -> bool:
+        """Return whether every division ambiguity is zero in the quotient module.
+
+        This implements the uniqueness criterion from Proposition 4.10:
+        Col(K_raw) is trivial modulo relations iff Col(K_raw) is contained in Col(R_q).
+        """
+        if K_raw.shape[1] == 0:
+            return True
+        if all(x == self.domain.zero for x in K_raw.to_list_flat()):
+            return True
+        if M_q.R is None or M_q.R.shape[1] == 0:
+            return False
+        return SNF.solve(K_raw, M_q.R) is not None
+
     def _kernel_mod_relations(self, K_raw: DMatrix, M_q: Module) -> DMatrix:
         """
         Reduce raw kernel ambiguity by quotient-module relations.
@@ -277,22 +291,40 @@ class Page:
 
         Return:
             Generators representing span(K_raw)/span(R_q), where R_q = M_q.R.
+
+        The raw kernel may have dependent columns, so we first replace it by a
+        basis of its column module before aligning the quotient relations.
         """
         if K_raw.shape[1] == 0:
             return K_raw
+
+        # Proposition 4.10: uniqueness only needs the column-space inclusion
+        # Col(K_raw) <= Col(R_q). Handle that case directly and exactly.
+        if self._kernel_unique_mod_relations(K_raw, M_q):
+            return DMatrix.zeros((K_raw.shape[0], 0), self.domain)
+
+        # Extract a genuine basis of Col(K_raw). Quotient-structure extraction
+        # is only valid after this basis step; using a dependent spanning set
+        # can introduce spurious ambiguity generators.
+        D_raw, _, V_raw = SNF.decomp(K_raw)
+        rank = sum(1 for x in D_raw.diagonal() if x != self.domain.zero)
+        if rank == 0:
+            return DMatrix.zeros((K_raw.shape[0], 0), self.domain)
+        K_basis = (K_raw * V_raw).extract_columns(list(range(rank)))
+
         if M_q.R is None or M_q.R.shape[1] == 0:
-            return K_raw
+            return K_basis
 
         # Expected in well-defined module actions: quotient relations are
         # among solution-difference directions.
-        solved = SNF.solve(M_q.R, K_raw)  # M_q.R = K_raw * X
+        solved = SNF.solve(M_q.R, K_basis)  # M_q.R = K_basis * X
         assert solved is not None, (
             "Expected quotient-module relations to lie in the divide-kernel ambiguity, "
             f"but failed for bidegree {M_q.bideg} on page {self.page_num}."
         )
         X = solved[0]
-        _, Q, D = SNF.align(M_q.R, K_raw, _X=X)
-        K_aligned = K_raw * Q
+        _, Q, D = SNF.align(M_q.R, K_basis, _X=X)
+        K_aligned = K_basis * Q
 
         diag_len = min(D.shape)
         keep_indices = []
