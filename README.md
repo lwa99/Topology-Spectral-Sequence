@@ -1,6 +1,6 @@
 # Topology-Spectral-Sequence
 
-Compute and inspect algebraic spectral sequences over SymPy domains, then export chart data to HTML.
+Compute and inspect algebraic spectral sequences over exact SymPy domains, then export chart data to HTML.
 
 ## Run the program
 
@@ -39,7 +39,7 @@ ss.kill(a**2)              # add relations
 # Add pages (E1, E2, E3, ...). known_diff maps src -> d(src) on that page.
 p1 = ss.add_page({a: 0, t: 0})
 p2 = ss.add_page({a: 0, t: 0})
-p3 = ss.add_page({t: a, 2*a: 0})
+p3 = ss.add_page({t: a, a: 0})
 p4 = ss.add_page()
 
 module = p4[3, 2]          # module at bidegree (3, 2)
@@ -48,6 +48,8 @@ if info is not None:
     gens, torsion = info
 ```
 
+In this sample, the supplied value `d3(a) = 0` is mathematically redundant because `d3(t) = a` and `d3^2 = 0`; the current implementation does not yet infer `d^2 = 0` automatically.
+
 ### Important API notes
 
 - `ss.add_page(known_diff)` expects a dict of SymPy expressions in your generators.
@@ -55,13 +57,13 @@ if info is not None:
 - `module.get_structural_information()` returns `(generators, torsion)` in absolute coordinates.
 - `module.get_diff_span()` and `page.d.get_diff_span(bidegree)` compute differential images. If data is insufficient, the program may request missing differential values interactively.
 
-## Base-domain assumptions (read this first)
+## Base-domain assumptions
 
-This code currently assumes a Euclidean-style computational domain for Smith normal form routines.
+This repository uses a **custom Smith-normal-form implementation** in `src/snf.py`, built on SymPy's exact `DomainMatrix`/domain arithmetic. It does not simply delegate the spectral-sequence computations to SymPy's high-level Smith-normal-form routine.
 
-- Internally, SNF uses operations like `gcdex`, `rem`, and `exquo`.
-- `SNFMatrix` also verifies `domain.is_PID`.
-- In practice, use Euclidean domains (for example `ZZ`, finite fields like `GF(p)`, and other fields with the required exact operations).
-- A non-Euclidean PID is not a supported target here; decomposition can fail or hit the explicit non-convergence guard.
+- The SNF implementation uses exact domain operations such as `gcdex`, `rem`, and `exquo`.
+- `SNFMatrix` verifies `domain.is_PID`.
+- In practice, the implementation is aimed at Euclidean-style computational PID domains such as `ZZ`, finite fields like `GF(p)`, and other exact fields/domains that provide the required operations.
+- A non-Euclidean PID is not currently a supported computational target; decomposition can fail or hit the explicit non-convergence guard.
 
-If you provide a custom domain, ensure those exact-division and gcd/remainder operations are implemented and consistent.
+If you provide a custom domain, ensure those exact-division, gcd, and remainder operations are implemented consistently.
