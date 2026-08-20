@@ -5,7 +5,7 @@ Compute and inspect algebraic spectral sequences over exact SymPy domains, then 
 ## Contributors
 
 - **Wenao Liu** — project originator and mathematical lead. As a mathematics PhD, he defined the target functionality, provided mathematical guidance throughout development, and contributed ideas for key algorithms.
-- **Yuankun Zou** — lead developer. Led the implementation and software architecture, selected the core computational packages, and introduced Smith normal form to make the proposed algebraic constructions rigorous and implementable over exact domains.
+- **Yuankun Zou** — lead developer. Co-designed the core algorithms, led the implementation and software architecture, selected the core computational packages, and incorporated Smith normal form into the implementation to formalize and realize the proposed algebraic constructions over exact domains.
 - **Yu Xin** — contributed to the optimization and implementation of specific algorithms.
 
 ## Run the program
