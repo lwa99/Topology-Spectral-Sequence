@@ -2,6 +2,10 @@
 
 Compute algebraic spectral sequences over exact coefficient domains using explicit quotient-module presentations, Smith normal form, and differential inference, with optional HTML visualization.
 
+## Paper
+
+The accompanying paper is available as [`main.pdf`](main.pdf).
+
 ## Features
 
 - Represents each page module as an explicit quotient `Col(S) / Col(Z)` in a fixed ambient free module.
@@ -33,7 +37,7 @@ pytest
 
 The core runtime dependencies are SymPy, Jinja2, and jsonschema; they are installed automatically by the package metadata.
 
-## Run the sample
+## Reproduce the demo
 
 From the repository root, run:
 
@@ -47,7 +51,17 @@ Example:
 python src/main.py 0 8 0 8 output.html
 ```
 
-This builds the sample spectral sequence in `src/main.py`, scans the rectangle of bidegrees you provide, and writes an HTML chart file.
+This builds the sample spectral sequence in `src/main.py`, scans the rectangle of bidegrees you provide, and writes an interactive HTML chart. A successful run ends with output like:
+
+```text
+Debug: found 5 total nodes
+Generated output.html successfully.
+Wrote output.html covering x in [0,8], y in [0,8]
+```
+
+The reproduced fourth page has five nontrivial classes in the scanned region: `1` at bidegree `(0, 0)`, and `a*t`, `a*t**2`, `a*t**3`, `a*t**4` at bidegrees `(3, 2)`, `(3, 4)`, `(3, 6)`, `(3, 8)`, respectively. Open `output.html` in a browser to inspect labels and use the interactive chart controls.
+
+![Reproduced E4 chart for the sample spectral sequence](docs/images/demo-output.png)
 
 ## API for custom spectral sequences
 
