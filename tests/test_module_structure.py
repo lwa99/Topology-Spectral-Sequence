@@ -14,7 +14,7 @@ for path in (SRC, ROOT):
     if path_str not in sys.path:
         sys.path.insert(0, path_str)
 
-from src.matrices import DV  # noqa: E402
+from src.matrices import DM, DV  # noqa: E402
 from src.page_and_module import Module  # noqa: E402
 from src.spectral_sequence import SpectralSequence  # noqa: E402
 
@@ -64,3 +64,38 @@ def test_structural_information_keeps_actual_torsion_summands():
     assert len(gens) == 1
     assert torsion == [ZZ(2)]
     assert p4[3, 2].classify(gens[0]) == 1
+
+
+def test_division_ambiguity_detects_uniqueness_by_column_space_inclusion():
+    ss = SpectralSequence(ZZ, [a], [[1], [0]], [[1, 0], [-1, 1]])
+    p1 = ss.add_page({a: 0})
+    bideg = p1._normalize_bidegree((1, 0))
+
+    quotient_module = Module(
+        p1,
+        bideg,
+        [DV([1], ZZ)],
+        [DV([1], ZZ)],
+    )
+    dependent_kernel = DM([[1, 1]], ZZ)
+
+    reduced = p1._kernel_mod_relations(dependent_kernel, quotient_module)
+    assert reduced.shape == (1, 0)
+
+
+def test_division_ambiguity_extracts_basis_before_quotient_structure():
+    ss = SpectralSequence(ZZ, [a], [[1], [0]], [[1, 0], [-1, 1]])
+    p1 = ss.add_page({a: 0})
+    bideg = p1._normalize_bidegree((1, 0))
+
+    quotient_module = Module(
+        p1,
+        bideg,
+        [DV([1], ZZ)],
+        [DV([2], ZZ)],
+    )
+    dependent_kernel = DM([[1, 1]], ZZ)
+
+    reduced = p1._kernel_mod_relations(dependent_kernel, quotient_module)
+    assert reduced.shape == (1, 1)
+    assert quotient_module.classify(reduced.extract_columns([0])) == 1
