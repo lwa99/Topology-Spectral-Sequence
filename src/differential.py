@@ -403,6 +403,26 @@ class Differential:
                 f"d({src}) should land in bidegree {target_bideg}, but got {tgt.bidegree}."
             )
 
+        src_status = self.page[src.bidegree].classify(src.coordinate)
+        if src_status == 2:
+            raise ValueError(
+                f"Invalid differential data on page {self.page.page_num} at source bidegree {src.bidegree}: "
+                f"{src} does not represent an element of the source module."
+            )
+
+        target_status = 0 if tgt.isZero() else self.page[target_bideg].classify(tgt.coordinate)
+        if target_status == 2:
+            raise ValueError(
+                f"Invalid differential data on page {self.page.page_num} at source bidegree {src.bidegree}: "
+                f"{tgt} does not represent an element of the target module at bidegree {target_bideg}."
+            )
+
+        if src_status == 0 and target_status != 0:
+            raise ValueError(
+                f"Invalid differential data on page {self.page.page_num} at source bidegree {src.bidegree}: "
+                f"{src} is zero in the source module, so its differential must be zero in the target module."
+            )
+
     def _add_info_pair(self, src: HomoElem, tgt: HomoElem) -> bool:
         """
         Insert one known differential value.
