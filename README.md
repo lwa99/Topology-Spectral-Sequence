@@ -1,6 +1,14 @@
 # Topology-Spectral-Sequence
 
-Compute and inspect algebraic spectral sequences over exact SymPy domains, then export chart data to HTML.
+Compute algebraic spectral sequences over exact coefficient domains using explicit quotient-module presentations, Smith normal form, and differential inference, with optional HTML visualization.
+
+## Features
+
+- Represents each page module as an explicit quotient `Col(S) / Col(Z)` in a fixed ambient free module.
+- Uses a custom Smith-normal-form implementation over exact computational PID-style domains to extract module structure and solve linear-algebra subproblems exactly.
+- Computes kernels, images, quotient structure, and exact division, and propagates differential information using linearity, quotient relations, and Leibniz-based inference.
+- Supports polynomial generators and homogeneous relations in a bigraded algebraic setting.
+- Exports computed pages to an interactive HTML spectral-sequence chart through the bundled SeqSee-based frontend.
 
 ## Contributors
 
@@ -8,7 +16,24 @@ Compute and inspect algebraic spectral sequences over exact SymPy domains, then 
 - **Yuankun Zou** — lead developer. Co-designed the core algorithms, led the implementation and software architecture, selected the core computational packages, and incorporated Smith normal form into the implementation to formalize and realize the proposed algebraic constructions over exact domains.
 - **Yu Xin** — contributed to the optimization and implementation of specific algorithms.
 
-## Run the program
+## Installation
+
+Python 3.10 or later is required. From the repository root:
+
+```bash
+python -m pip install -e .
+```
+
+To install the test dependency as well:
+
+```bash
+python -m pip install -e ".[test]"
+pytest
+```
+
+The core runtime dependencies are SymPy, Jinja2, and jsonschema; they are installed automatically by the package metadata.
+
+## Run the sample
 
 From the repository root, run:
 
@@ -19,7 +44,7 @@ python src/main.py <min_x> <max_x> <min_y> <max_y> <out.html>
 Example:
 
 ```bash
-python src/main.py 0 8 0 8 output_current_main.html
+python src/main.py 0 8 0 8 output.html
 ```
 
 This builds the sample spectral sequence in `src/main.py`, scans the rectangle of bidegrees you provide, and writes an HTML chart file.
@@ -36,8 +61,8 @@ from src.spectral_sequence import SpectralSequence
 ss = SpectralSequence(
     ZZ,                     # base domain
     [a, t],                 # generators
-    [[3, 0], [0, 2]],       # generator bidegrees (2 x n)
-    [[1, 0], [-1, 1]],      # differential-bidegree coefficient matrix
+    [[3, 0], [0, 2]],      # generator bidegrees (2 x n)
+    [[1, 0], [-1, 1]],     # differential-bidegree coefficient matrix
 )
 
 ss.kill(a**2)              # add relations
@@ -48,7 +73,7 @@ p2 = ss.add_page({a: 0, t: 0})
 p3 = ss.add_page({t: a, a: 0})
 p4 = ss.add_page()
 
-module = p4[3, 2]          # module at bidegree (3, 2)
+module = p4[3, 2]
 info = module.get_structural_information()
 if info is not None:
     gens, torsion = info
@@ -58,12 +83,20 @@ In this sample, the supplied value `d3(a) = 0` is mathematically redundant becau
 
 ### Important API notes
 
-- `ss.add_page(known_diff)` expects a dict of SymPy expressions in your generators.
+- `ss.add_page(known_diff)` expects a dictionary of SymPy expressions in the declared generators.
 - `p = ss.add_page(...)` returns a `Page`; index modules with `p[x, y]`.
 - `module.get_structural_information()` returns `(generators, torsion)` in absolute coordinates.
 - `module.get_diff_span()` and `page.d.get_diff_span(bidegree)` compute differential images. If data is insufficient, the program may request missing differential values interactively.
 
-## Base-domain assumptions
+## Mathematical scope and current limitations
+
+- The current implementation is **first-quadrant**: bidegrees with a negative coordinate are treated as zero.
+- Inputs are expected to be homogeneous with respect to the declared bigrading. The basis-enumeration routines also assume the finiteness conditions encoded by the nonnegative-exponent enumeration in `src/utilities.py`.
+- Differential product inference currently uses the sign-free Leibniz convention implemented by the project; graded-sign conventions are not yet generalized.
+- The program validates and propagates known differential data, but it does **not** yet automatically infer consequences of `d^2 = 0`.
+- Some differential values may still need to be supplied interactively when the available algebraic information does not determine them uniquely.
+
+### Base-domain assumptions
 
 This repository uses a **custom Smith-normal-form implementation** in `src/snf.py`, built on SymPy's exact `DomainMatrix`/domain arithmetic. It does not simply delegate the spectral-sequence computations to SymPy's high-level Smith-normal-form routine.
 
