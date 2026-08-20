@@ -67,3 +67,15 @@ This repository uses a **custom Smith-normal-form implementation** in `src/snf.p
 - A non-Euclidean PID is not currently a supported computational target; decomposition can fail or hit the explicit non-convergence guard.
 
 If you provide a custom domain, ensure those exact-division, gcd, and remainder operations are implemented consistently.
+
+## Third-party components
+
+The HTML spectral-sequence visualization is adapted from [SeqSee](https://github.com/JoeyBF/SeqSee), developed by Joey Beauvais-Feisthauer and distributed under the MIT License.
+
+The adapted/copied components in this repository include:
+
+- `seqsee_main.py`
+- `template.html.jinja`
+- `input_schema.json`
+
+The original SeqSee copyright notice and MIT License are preserved in `seqsee_main.py` and separately in [`THIRD_PARTY_LICENSES/SeqSee.txt`](THIRD_PARTY_LICENSES/SeqSee.txt). The root [`LICENSE`](LICENSE) applies to this repository's own code unless otherwise noted.
