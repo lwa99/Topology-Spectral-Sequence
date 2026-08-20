@@ -2,10 +2,6 @@
 
 Compute algebraic spectral sequences over exact coefficient domains using explicit quotient-module presentations, Smith normal form, and differential inference, with optional HTML visualization.
 
-## Paper
-
-**Paper:** [*Computing Algebraic Spectral Sequences over PID-Type Coefficients*](docs/computing-algebraic-spectral-sequences-over-pid-type-coefficients.pdf)
-
 ## Features
 
 - Represents each page module as an explicit quotient `Col(S) / Col(Z)` in a fixed ambient free module.
