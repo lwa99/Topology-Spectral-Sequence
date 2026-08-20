@@ -2,6 +2,12 @@
 
 Compute and inspect algebraic spectral sequences over exact SymPy domains, then export chart data to HTML.
 
+## Contributors
+
+- **Wenao Liu** — project originator and mathematical lead. As a mathematics PhD, he defined the target functionality, provided mathematical guidance throughout development, and contributed ideas for key algorithms.
+- **Yuankun Zou** — lead developer. Led the implementation and software architecture, selected the core computational packages, and introduced Smith normal form to make the proposed algebraic constructions rigorous and implementable over exact domains.
+- **Yu Xin** — contributed to the optimization and implementation of specific algorithms.
+
 ## Run the program
 
 From the repository root, run:
