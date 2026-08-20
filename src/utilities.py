@@ -31,8 +31,8 @@ def convex_integral_combinations(b: IMatrix, v: IMatrix) -> tuple[tuple, ...]:
 
     Let $b$ be a length n (>0) collection of 2-dimensional vectors and let $v$ be a specific 2-dimensional vector.
     Find all combinations of vectors in $b$ with non-negative integer coefficients that can sum up to $v$.
-    We assume that the second component $v$ and those of vectors in $b$ are non-negative. Also, for vectors in b,
-    we assume that when the second component is zero, their first component must be 0.
+    We assume that the second component of $v$ and those of vectors in $b$ are non-negative. For vectors in $b$,
+    whenever the second component is zero, the first component must be strictly positive.
 
     Solution:
     Step 1: If $b$ contains only 1 vector $u$, test if $v$ is a multiple of $u$.
