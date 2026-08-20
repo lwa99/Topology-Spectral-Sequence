@@ -1,24 +1,20 @@
-"""Examples for a cohomological spectral sequence project.
+"""Reference examples for the spectral-sequence implementation.
 
-These examples are written to match the *screenshot-style* page bookkeeping used in the
-conversation:
+Page bookkeeping in this file follows the project's API convention:
 
-- `p_1` is an extra startup page,
-- `p_2` is the mathematically natural input page for Serre-type examples,
+- `p_1` is an initial startup page,
+- `p_2` is the natural input page for the Serre-type examples,
 - `p_r` is the page on which the differential `d_r` is specified,
 - `p_{r+1}` is the next page obtained from that differential.
 
-So this file is aligned with the user's current code style rather than the clean textbook
-convention of starting directly at `E_2`.
+The examples use the cohomological grading convention
 
-Important notes:
-1. These examples assume a cohomological grading convention
-       d_r : E_r^{p,q} -> E_r^{p+r, q-r+1}.
-2. The current project discussed in the chat does *not* automatically extend differentials
-   by the Leibniz rule. Therefore, examples whose mathematical meaning depends on Leibniz
-   should be treated as conceptual test cases unless the relevant values are supplied by hand.
-3. The import path for `SpectralSequence` is project-specific. Replace the placeholder import
-   below with the correct one in your codebase.
+    d_r : E_r^{p,q} -> E_r^{p+r, q-r+1}.
+
+Known differentials are propagated by the implementation using linearity,
+quotient relations, and Leibniz-based inference where applicable. Consequences
+of `d^2 = 0` are not inferred automatically and must still be supplied when
+needed.
 """
 
 from __future__ import annotations
@@ -29,8 +25,7 @@ from typing import Callable, Dict, List
 from sympy import symbols
 from sympy.polys.domains import GF
 
-# Example: from my_project.sseq import SpectralSequence
-from src.spectral_sequence import SpectralSequence  # type: ignore
+from src.spectral_sequence import SpectralSequence
 
 
 @dataclass(frozen=True)

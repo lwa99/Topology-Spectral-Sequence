@@ -9,15 +9,14 @@ import pytest
 
 ROOT = Path(__file__).resolve().parents[1]
 SRC = ROOT / "src"
-TESTS = ROOT / "tests"
-for path in (SRC, ROOT, TESTS):
+for path in (SRC, ROOT):
     path_str = str(path)
     if path_str not in sys.path:
         sys.path.insert(0, path_str)
 
 from matrices import IV  # noqa: E402
 from element import HomoElem  # noqa: E402
-from spectral_sequence_examples import all_examples, build_all_examples  # noqa: E402
+from examples.spectral_sequence_examples import all_examples, build_all_examples  # noqa: E402
 
 
 def _rank_mod(rows, mod):

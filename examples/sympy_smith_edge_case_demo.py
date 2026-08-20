@@ -1,8 +1,11 @@
 """
 Minimal demonstration of a SymPy Smith normal form edge case on a field domain.
 
-Run:
-    python sympy_smith_edge_case_demo.py
+This reproducer documents one motivation for keeping the project's exact
+Smith-normal-form implementation separate from SymPy's high-level routine.
+
+Run from the repository root:
+    python examples/sympy_smith_edge_case_demo.py
 """
 
 from sympy import Matrix
