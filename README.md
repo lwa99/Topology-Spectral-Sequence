@@ -4,7 +4,7 @@ Compute algebraic spectral sequences over exact coefficient domains using explic
 
 ## Paper
 
-The accompanying paper is available as [`main.pdf`](main.pdf).
+**Paper:** [*Computing Algebraic Spectral Sequences over PID-Type Coefficients*](docs/computing-algebraic-spectral-sequences-over-pid-type-coefficients.pdf)
 
 ## Features
 
@@ -16,7 +16,7 @@ The accompanying paper is available as [`main.pdf`](main.pdf).
 
 ## Contributors
 
-- **Wenao Liu** — project originator and mathematical lead. As a mathematics PhD, he defined the target functionality, provided mathematical guidance throughout development, and contributed ideas for key algorithms.
+- **Wenao Liu** — project originator and mathematical lead. He defined the target functionality, provided mathematical guidance throughout development, and contributed ideas for key algorithms.
 - **Yuankun Zou** — lead developer. Co-designed the core algorithms, led the implementation and software architecture, selected the core computational packages, and incorporated Smith normal form into the implementation to formalize and realize the proposed algebraic constructions over exact domains.
 - **Yu Xin** — contributed to the optimization and implementation of specific algorithms.
 
